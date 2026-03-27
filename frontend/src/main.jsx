@@ -6,7 +6,7 @@ import viVN from 'antd/locale/vi_VN'
 import { store } from './store'
 import App from './App.jsx'
 import './index.css'
-
+import { BrowserRouter } from 'react-router-dom';
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <Provider store={store}>
@@ -24,8 +24,11 @@ createRoot(document.getElementById('root')).render(
           }
         }}
       >
-        <App />
+       <BrowserRouter basename="/shop">
+          <App />
+        </BrowserRouter>
       </ConfigProvider>
     </Provider>
   </StrictMode>
+
 )
