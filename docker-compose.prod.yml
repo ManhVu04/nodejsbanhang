@@ -1,0 +1,33 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: minishop-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    image: ${DOCKERHUB_USERNAME}/minishop-backend:${IMAGE_TAG:-latest}
+    container_name: minishop-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017/NNPTUD-S3}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
+    depends_on:
+      - mongo
+    expose:
+      - "3000"
+
+  frontend:
+    image: ${DOCKERHUB_USERNAME}/minishop-frontend:${IMAGE_TAG:-latest}
+    container_name: minishop-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  mongo_data:
