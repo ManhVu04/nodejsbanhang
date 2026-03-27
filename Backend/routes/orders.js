@@ -1,0 +1,271 @@
+var express = require("express");
+var router = express.Router();
+let mongoose = require('mongoose');
+let { CheckLogin, CheckRole } = require('../utils/authHandler');
+let orderModel = require('../schemas/orders');
+let cartModel = require('../schemas/carts');
+let inventoryModel = require('../schemas/inventories');
+let inventoryLogModel = require('../schemas/inventoryLogs');
+let paymentModel = require('../schemas/payments');
+let productModel = require('../schemas/products');
+let { sendOrderConfirmationMail } = require('../utils/mailHandler');
+let crypto = require('crypto');
+
+// POST / — Place order (transaction-based concurrency control)
+router.post('/', CheckLogin, async function (req, res) {
+    let session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        let user = req.user;
+        let { paymentMethod, shippingAddress, note } = req.body;
+
+        if (!paymentMethod || !['COD', 'VNPay'].includes(paymentMethod)) {
+            throw new Error('Phương thức thanh toán không hợp lệ');
+        }
+
+        // Get user's cart
+        let cart = await cartModel.findOne({ user: user._id }).populate('products.product');
+        if (!cart || cart.products.length === 0) {
+            throw new Error('Giỏ hàng trống');
+        }
+
+        let orderItems = [];
+        let totalPrice = 0;
+
+        // For each cart item: atomically deduct stock to prevent over-selling
+        for (let cartItem of cart.products) {
+            let product = await productModel.findById(cartItem.product._id || cartItem.product);
+            if (!product || product.isDeleted) {
+                throw new Error(`Sản phẩm "${cartItem.product.title || cartItem.product}" không tồn tại`);
+            }
+
+            let qty = cartItem.quantity;
+
+            // Atomic update: only succeeds if stock >= qty (prevents over-selling)
+            let inventoryUpdate = await inventoryModel.findOneAndUpdate(
+                {
+                    product: product._id,
+                    stock: { $gte: qty }
+                },
+                {
+                    $inc: { stock: -qty, soldCount: qty }
+                },
+                { new: true, session }
+            );
+
+            if (!inventoryUpdate) {
+                throw new Error(`Sản phẩm "${product.title}" không đủ số lượng trong kho`);
+            }
+
+            let subtotal = product.price * qty;
+            orderItems.push({
+                product: product._id,
+                quantity: qty,
+                priceAtPurchase: product.price,
+                subtotal: subtotal
+            });
+            totalPrice += subtotal;
+
+            // Log inventory out
+            await new inventoryLogModel({
+                product: product._id,
+                type: 'OUT',
+                quantity: qty,
+                reason: 'Đặt hàng',
+                performedBy: user._id
+            }).save({ session });
+        }
+
+        // Create order
+        let newOrder = new orderModel({
+            user: user._id,
+            items: orderItems,
+            totalPrice: totalPrice,
+            status: paymentMethod === 'COD' ? 'Pending' : 'Pending',
+            paymentMethod: paymentMethod,
+            shippingAddress: shippingAddress || '',
+            note: note || ''
+        });
+        await newOrder.save({ session });
+
+        // Create payment record
+        let idempotencyKey = crypto.randomUUID();
+        let newPayment = new paymentModel({
+            order: newOrder._id,
+            user: user._id,
+            method: paymentMethod,
+            amount: totalPrice,
+            status: paymentMethod === 'COD' ? 'pending' : 'pending',
+            idempotencyKey: idempotencyKey
+        });
+        await newPayment.save({ session });
+
+        // Clear user's cart
+        cart.products = [];
+        await cart.save({ session });
+
+        await session.commitTransaction();
+        await session.endSession();
+
+        // Send confirmation email (async, non-blocking)
+        await newOrder.populate('items.product');
+        try {
+            await sendOrderConfirmationMail(user.email, newOrder);
+        } catch (emailErr) {
+            console.log('Email send failed:', emailErr.message);
+        }
+
+        res.send({
+            message: 'Đặt hàng thành công',
+            order: newOrder,
+            payment: newPayment
+        });
+
+    } catch (err) {
+        await session.abortTransaction();
+        await session.endSession();
+        res.status(400).send({ message: err.message });
+    }
+});
+
+// GET / — User's order history
+router.get('/', CheckLogin, async function (req, res) {
+    try {
+        let { page = 1, limit = 10, status } = req.query;
+        let filter = { user: req.user._id };
+        if (status) filter.status = status;
+
+        let orders = await orderModel.find(filter)
+            .populate('items.product', 'title images price slug')
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit));
+
+        let total = await orderModel.countDocuments(filter);
+
+        res.send({
+            orders,
+            total,
+            page: parseInt(page),
+            totalPages: Math.ceil(total / limit)
+        });
+    } catch (err) {
+        res.status(400).send({ message: err.message });
+    }
+});
+
+// GET /admin/all — Admin: all orders
+router.get('/admin/all', CheckLogin, CheckRole(['Admin']), async function (req, res) {
+    try {
+        let { page = 1, limit = 10, status } = req.query;
+        let filter = {};
+        if (status) filter.status = status;
+
+        let orders = await orderModel.find(filter)
+            .populate('user', 'username email fullName')
+            .populate('items.product', 'title images price slug')
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit));
+
+        let total = await orderModel.countDocuments(filter);
+
+        res.send({
+            orders,
+            total,
+            page: parseInt(page),
+            totalPages: Math.ceil(total / limit)
+        });
+    } catch (err) {
+        res.status(400).send({ message: err.message });
+    }
+});
+
+// GET /:id — Order detail
+router.get('/:id', CheckLogin, async function (req, res) {
+    try {
+        let order = await orderModel.findById(req.params.id)
+            .populate('items.product', 'title images price slug description')
+            .populate('user', 'username email fullName');
+
+        if (!order) {
+            return res.status(404).send({ message: 'Đơn hàng không tồn tại' });
+        }
+
+        // Only allow owner or admin
+        let isAdmin = req.user.role && req.user.role.name === 'Admin';
+        if (order.user._id.toString() !== req.user._id.toString() && !isAdmin) {
+            return res.status(403).send({ message: 'Không có quyền xem đơn hàng này' });
+        }
+
+        let payment = await paymentModel.findOne({ order: order._id });
+
+        res.send({ order, payment });
+    } catch (err) {
+        res.status(400).send({ message: err.message });
+    }
+});
+
+// PUT /:id/status — Admin: update order status
+router.put('/:id/status', CheckLogin, CheckRole(['Admin']), async function (req, res) {
+    try {
+        let { status } = req.body;
+        let validStatuses = ['Pending', 'Paid', 'Shipped', 'Delivered', 'Cancelled'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).send({ message: 'Trạng thái không hợp lệ' });
+        }
+
+        let order = await orderModel.findByIdAndUpdate(
+            req.params.id,
+            { status },
+            { new: true }
+        ).populate('items.product', 'title images price');
+
+        if (!order) {
+            return res.status(404).send({ message: 'Đơn hàng không tồn tại' });
+        }
+
+        // If cancelled, restore stock
+        if (status === 'Cancelled') {
+            let session = await mongoose.startSession();
+            session.startTransaction();
+            try {
+                for (let item of order.items) {
+                    await inventoryModel.findOneAndUpdate(
+                        { product: item.product._id || item.product },
+                        { $inc: { stock: item.quantity, soldCount: -item.quantity } },
+                        { session }
+                    );
+                    await new inventoryLogModel({
+                        product: item.product._id || item.product,
+                        type: 'IN',
+                        quantity: item.quantity,
+                        reason: 'Hủy đơn hàng #' + order._id,
+                        order: order._id,
+                        performedBy: req.user._id
+                    }).save({ session });
+                }
+                await session.commitTransaction();
+                await session.endSession();
+            } catch (txErr) {
+                await session.abortTransaction();
+                await session.endSession();
+                console.log('Failed to restore stock:', txErr.message);
+            }
+        }
+
+        // If marked as Paid, update payment
+        if (status === 'Paid') {
+            await paymentModel.findOneAndUpdate(
+                { order: order._id },
+                { status: 'paid', paidAt: new Date() }
+            );
+        }
+
+        res.send({ message: 'Cập nhật trạng thái thành công', order });
+    } catch (err) {
+        res.status(400).send({ message: err.message });
+    }
+});
+
+module.exports = router;
