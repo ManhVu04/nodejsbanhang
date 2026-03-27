@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { useEffect, Suspense, lazy } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Spin } from 'antd';
@@ -45,7 +45,7 @@ function AppInit() {
 
 function App() {
     return (
-        <BrowserRouter>
+        <>
             <AppInit />
             <Suspense fallback={<div className="page-container" style={{ textAlign: 'center', paddingTop: 80 }}><Spin size="large" /></div>}>
                 <Routes>
@@ -82,7 +82,7 @@ function App() {
                     </Route>
                 </Routes>
             </Suspense>
-        </BrowserRouter>
+        </>
     );
 }
 
