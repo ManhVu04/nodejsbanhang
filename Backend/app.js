@@ -54,12 +54,58 @@ app.use('/api/v1/vnpay', require('./routes/vnpay'));
 app.use('/api/v1/dashboard', require('./routes/dashboard'));
 app.use('/api/v1/inventories', require('./routes/inventories'));
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nodejs');
+const isProduction = process.env.NODE_ENV === 'production';
+const configuredMongoUri = (process.env.MONGODB_URI || '').trim();
+const devMongoFallbackUris = [
+    'mongodb://127.0.0.1:27019/nodejs?directConnection=true',
+    'mongodb://127.0.0.1:27017/nodejs?directConnection=true',
+    'mongodb://127.0.0.1:27018/nodejs?directConnection=true',
+    'mongodb://localhost:27017/nodejs'
+];
+const mongoUriCandidates = configuredMongoUri
+    ? (isProduction ? [configuredMongoUri] : [configuredMongoUri, ...devMongoFallbackUris])
+    : devMongoFallbackUris;
+
+function sanitizeMongoUri(uri) {
+    return uri.replace(/\/\/([^@]+)@/, '//***:***@');
+}
+
+async function connectMongo() {
+    let lastError;
+
+    for (const uri of [...new Set(mongoUriCandidates)]) {
+        try {
+            await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+            console.log(`MongoDB connected: ${sanitizeMongoUri(uri)}`);
+            return;
+        } catch (err) {
+            lastError = err;
+            console.error(`MongoDB connect failed: ${sanitizeMongoUri(uri)} (${err.message})`);
+        }
+    }
+
+    if (isProduction && lastError) {
+        throw lastError;
+    }
+
+    console.error('MongoDB unavailable. Server will keep running, but DB-backed APIs may fail until DB is reachable.');
+}
+
+connectMongo().catch((err) => {
+    console.error(`Fatal MongoDB error: ${err.message}`);
+    if (isProduction) {
+        process.exit(1);
+    }
+});
+
 mongoose.connection.on('connected', function () {
     console.log("connected");
 });
 mongoose.connection.on('disconnected', function () {
     console.log("disconnected");
+});
+mongoose.connection.on('error', function (err) {
+    console.error(`MongoDB connection error: ${err.message}`);
 });
 
 // catch 404 and forward to error handler
