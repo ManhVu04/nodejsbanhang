@@ -22,7 +22,11 @@ export default function ProductsPage() {
     const maxPrice = searchParams.get('maxPrice') || '';
 
     useEffect(() => {
-        api.get('/categories').then(res => setCategories(res.data || [])).catch(() => {});
+        api.get('/categories')
+            .then((res) => {
+                setCategories(Array.isArray(res.data) ? res.data : []);
+            })
+            .catch(() => {});
     }, []);
 
     useEffect(() => {
@@ -40,10 +44,15 @@ export default function ProductsPage() {
             if (maxPrice) params.maxPrice = maxPrice;
 
             const res = await api.get('/products/search', { params });
-            setProducts(res.data.products || []);
-            setTotal(res.data.total || 0);
+            const payload = res.data || {};
+            const nextProducts = Array.isArray(payload.products) ? payload.products : [];
+            const totalValue = Number(payload.total);
+
+            setProducts(nextProducts);
+            setTotal(Number.isFinite(totalValue) ? totalValue : 0);
         } catch {
             setProducts([]);
+            setTotal(0);
         }
         setLoading(false);
     };

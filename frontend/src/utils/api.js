@@ -1,7 +1,13 @@
 import axios from 'axios';
 
+const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL ||
+    (typeof window !== 'undefined' && window.location.pathname.startsWith('/shop')
+        ? '/shop/api/v1'
+        : '/api/v1');
+
 const api = axios.create({
-    baseURL: '/api/v1',
+    baseURL: API_BASE_URL,
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json'

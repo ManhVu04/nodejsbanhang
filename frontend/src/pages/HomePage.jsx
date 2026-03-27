@@ -12,8 +12,18 @@ export default function HomePage() {
     const [categories, setCategories] = useState([]);
 
     useEffect(() => {
-        api.get('/products').then(res => setProducts(res.data?.slice?.(0, 8) || [])).catch(() => {});
-        api.get('/categories').then(res => setCategories(res.data || [])).catch(() => {});
+        api.get('/products')
+            .then((res) => {
+                const list = Array.isArray(res.data) ? res.data : [];
+                setProducts(list.slice(0, 8));
+            })
+            .catch(() => {});
+
+        api.get('/categories')
+            .then((res) => {
+                setCategories(Array.isArray(res.data) ? res.data : []);
+            })
+            .catch(() => {});
     }, []);
 
     const features = [

@@ -16,7 +16,7 @@ export default function CategoriesManagePage() {
 
     const fetchCategories = () => {
         setLoading(true);
-        api.get('/categories').then(res => setCategories(res.data || []))
+        api.get('/categories').then(res => setCategories(Array.isArray(res.data) ? res.data : []))
             .finally(() => setLoading(false));
     };
 

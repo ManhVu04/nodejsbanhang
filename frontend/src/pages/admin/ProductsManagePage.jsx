@@ -18,7 +18,10 @@ export default function ProductsManagePage() {
     const fetchAll = () => {
         setLoading(true);
         Promise.all([api.get('/products'), api.get('/categories')])
-            .then(([p, c]) => { setProducts(p.data || []); setCategories(c.data || []); })
+            .then(([p, c]) => {
+                setProducts(Array.isArray(p.data) ? p.data : []);
+                setCategories(Array.isArray(c.data) ? c.data : []);
+            })
             .finally(() => setLoading(false));
     };
 
