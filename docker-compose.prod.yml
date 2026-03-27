@@ -1,11 +1,4 @@
 services:
-  mongo:
-    image: mongo:7
-    container_name: minishop-mongo
-    restart: unless-stopped
-    volumes:
-      - mongo_data:/data/db
-
   backend:
     image: ${DOCKERHUB_USERNAME}/minishop-backend:${IMAGE_TAG:-latest}
     container_name: minishop-backend
@@ -13,10 +6,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017/NNPTUD-S3}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
-    depends_on:
-      - mongo
+      # Biến này sẽ lấy từ GitHub Secrets mà Mạnh đã cài đặt
+      MONGODB_URI: ${MONGODB_URI}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    # Đã xóa mongo khỏi depends_on vì dùng MongoDB cài trực tiếp trên Host
     expose:
       - "3000"
 
@@ -27,7 +20,4 @@ services:
     depends_on:
       - backend
     ports:
-      - "80:80"
-
-volumes:
-  mongo_data:
+      - "8081:80" # Đổi thành 8081 để không bị lỗi "Address already in use" với Nginx cổng 80
