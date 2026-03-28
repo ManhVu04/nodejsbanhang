@@ -51,7 +51,13 @@ export default function ProfilePage() {
                 onSuccess(response.data, file);
             }
         } catch (err) {
-            message.error(err.response?.data?.message || 'Tai anh that bai');
+            let statusCode = err.response?.status;
+            let apiMessage = err.response?.data?.message;
+            if (statusCode === 413) {
+                message.error('Anh vuot gioi han kich thuoc cua may chu (proxy). Vui long tang client_max_body_size tren server.');
+            } else {
+                message.error(apiMessage || 'Tai anh that bai');
+            }
             if (onError) {
                 onError(err);
             }
