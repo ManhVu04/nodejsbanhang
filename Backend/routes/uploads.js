@@ -86,6 +86,24 @@ router.post('/an_image', adminGuard, uploadImage.single('file')
             })
         }
     })
+
+router.post('/avatar', CheckLogin, uploadImage.single('file')
+    , function (req, res, next) {
+        if (!req.file) {
+            res.status(400).send({
+                message: 'file khong duoc rong'
+            })
+        } else {
+            res.send({
+                filename: req.file.filename,
+                path: req.file.path,
+                size: req.file.size,
+                mimeType: req.file.mimetype,
+                url: buildUploadUrl(req, req.file.filename)
+            })
+        }
+    })
+
 router.get('/:filename', function (req, res, next) {
     let filename = path.join(__dirname, '../uploads', req.params.filename)
     res.sendFile(filename)

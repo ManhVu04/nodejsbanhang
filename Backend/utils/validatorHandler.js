@@ -20,6 +20,7 @@ module.exports = {
     CreateRoleValidator: [
         body('name').notEmpty().withMessage("name khong duoc de trong")
     ], RegisterValidator: [
+        body('fullName').notEmpty().withMessage('ho ten khong duoc de trong').bail().isLength({ min: 2 }).withMessage('ho ten phai co it nhat 2 ky tu'),
         body('email').notEmpty().withMessage("email khong duoc de trong").bail().isEmail().withMessage("email sai dinh dang"),
         body('username').notEmpty().withMessage("username khong duoc de trong").bail().isAlphanumeric().withMessage("username chi duoc chua chu va ki tu"),
         body('password').notEmpty().withMessage("username khong duoc de trong").bail().isStrongPassword(options.password).withMessage(`password dai it nhat ${options.password.minLength} ki tu,trong do it nhat ${options.password.minUppercase} chu hoa, ${options.password.minLowercase} chu thuong, ${options.password.minNumbers} so, ${options.password.minSymbols} ki tu`),

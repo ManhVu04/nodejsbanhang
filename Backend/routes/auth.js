@@ -62,7 +62,8 @@ router.post('/register', RegisterValidator, validationResult, async function (re
 
         let newItem = await userController.CreateAnUser(
             req.body.username, req.body.password, req.body.email,
-            defaultUserRole._id, session
+            defaultUserRole._id, session,
+            String(req.body.fullName || '').trim()
         )
         let newCart = new cartSchema({
             user: newItem._id

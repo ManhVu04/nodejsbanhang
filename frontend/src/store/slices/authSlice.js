@@ -15,9 +15,9 @@ export const loginUser = createAsyncThunk('auth/login', async ({ username, passw
     }
 });
 
-export const registerUser = createAsyncThunk('auth/register', async ({ username, password, email }, { rejectWithValue }) => {
+export const registerUser = createAsyncThunk('auth/register', async ({ fullName, username, password, email }, { rejectWithValue }) => {
     try {
-        const res = await api.post('/auth/register', { username, password, email });
+        const res = await api.post('/auth/register', { fullName, username, password, email });
         return res.data;
     } catch (err) {
         return rejectWithValue(err.response?.data?.message || 'Đăng ký thất bại');
