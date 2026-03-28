@@ -1,10 +1,14 @@
 let multer = require("multer");
 let path = require('path')
+let fs = require('fs')
+
+let uploadDirectory = path.join(__dirname, '../uploads');
+fs.mkdirSync(uploadDirectory, { recursive: true });
 
 //ghi vao dau? - ghi ten la gi->storage
 let storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads/')
+        cb(null, uploadDirectory)
     },
     filename: function (req, file, cb) {
         //name + ext

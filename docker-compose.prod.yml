@@ -26,6 +26,8 @@ services:
     # Đã xóa mongo khỏi depends_on vì dùng MongoDB cài trực tiếp trên Host
     expose:
       - "3000"
+    volumes:
+      - backend_uploads:/app/uploads
 
   frontend:
     image: ${DOCKERHUB_USERNAME}/minishop-frontend:${IMAGE_TAG:-latest}
@@ -35,3 +37,6 @@ services:
       - backend
     ports:
       - "8081:80" # Đổi thành 8081 để không bị lỗi "Address already in use" với Nginx cổng 80
+
+volumes:
+  backend_uploads:
