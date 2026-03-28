@@ -5,6 +5,25 @@ let fs = require('fs')
 let uploadDirectory = path.join(__dirname, '../uploads');
 fs.mkdirSync(uploadDirectory, { recursive: true });
 
+function parseMbLimit(value, fallbackMb) {
+    let parsed = Number.parseInt(String(value || ''), 10);
+    if (Number.isNaN(parsed) || parsed <= 0) {
+        return fallbackMb;
+    }
+    return parsed;
+}
+
+let maxImageUploadSizeMb = parseMbLimit(process.env.MAX_IMAGE_UPLOAD_SIZE_MB, 10);
+let maxExcelUploadSizeMb = parseMbLimit(process.env.MAX_EXCEL_UPLOAD_SIZE_MB, 10);
+
+let imageLimits = {
+    fileSize: maxImageUploadSizeMb * 1024 * 1024
+};
+
+let excelLimits = {
+    fileSize: maxExcelUploadSizeMb * 1024 * 1024
+};
+
 //ghi vao dau? - ghi ten la gi->storage
 let storage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -34,12 +53,14 @@ let filterExcel = function (req, file, cb) {
 module.exports = {
     uploadImage: multer({
         storage: storage,
-        limits: 5 * 1024 * 1024,
+        limits: imageLimits,
         fileFilter: filterImage
     }),
     uploadExcel: multer({
         storage: storage,
-        limits: 5 * 1024 * 1024,
+        limits: excelLimits,
         fileFilter: filterExcel
-    })
+    }),
+    maxImageUploadSizeMb: maxImageUploadSizeMb,
+    maxExcelUploadSizeMb: maxExcelUploadSizeMb
 }

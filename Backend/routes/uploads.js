@@ -1,6 +1,7 @@
 var express = require("express");
 var router = express.Router();
-let { uploadImage, uploadExcel } = require('../utils/uploadHandler')
+let multer = require('multer')
+let { uploadImage, uploadExcel, maxImageUploadSizeMb } = require('../utils/uploadHandler')
 let exceljs = require('exceljs')
 let path = require('path')
 let fs = require('fs')
@@ -16,6 +17,44 @@ let slugify = require('slugify')
 let { CheckLogin, CheckRole } = require('../utils/authHandler')
 
 const adminGuard = [CheckLogin, CheckRole(['Admin'])];
+
+function sendUploadFileResponse(req, file) {
+    return {
+        filename: file.filename,
+        path: file.path,
+        size: file.size,
+        mimeType: file.mimetype,
+        url: buildUploadUrl(req, file.filename)
+    };
+}
+
+function handleUploadError(res, error) {
+    if (!error) {
+        return false;
+    }
+
+    if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            res.status(413).send({
+                message: `kich thuoc file vuot qua ${maxImageUploadSizeMb}MB`
+            });
+            return true;
+        }
+
+        res.status(400).send({
+            message: error.message || 'tai file that bai'
+        });
+        return true;
+    }
+
+    res.status(400).send({
+        message: error.message || 'tai file that bai'
+    });
+    return true;
+}
+
+let uploadSingleImage = uploadImage.single('file');
+let uploadMultipleImages = uploadImage.array('files', 5);
 
 function buildUploadUrl(req, filename) {
     let configuredFrontend = String(process.env.FRONTEND_URL || '').trim().replace(/\/$/, '');
@@ -70,38 +109,38 @@ function getCellStringValue(cell) {
     return value.toString().trim();
 }
 
-router.post('/an_image', adminGuard, uploadImage.single('file')
+router.post('/an_image', adminGuard
     , function (req, res, next) {
-        if (!req.file) {
-            res.status(400).send({
-                message: "file khong duoc rong"
-            })
-        } else {
-            res.send({
-                filename: req.file.filename,
-                path: req.file.path,
-                size: req.file.size,
-                mimeType: req.file.mimetype,
-                url: buildUploadUrl(req, req.file.filename)
-            })
-        }
+        uploadSingleImage(req, res, function (error) {
+            if (handleUploadError(res, error)) {
+                return;
+            }
+
+            if (!req.file) {
+                return res.status(400).send({
+                    message: 'file khong duoc rong'
+                });
+            }
+
+            return res.send(sendUploadFileResponse(req, req.file));
+        });
     })
 
-router.post('/avatar', CheckLogin, uploadImage.single('file')
+router.post('/avatar', CheckLogin
     , function (req, res, next) {
-        if (!req.file) {
-            res.status(400).send({
-                message: 'file khong duoc rong'
-            })
-        } else {
-            res.send({
-                filename: req.file.filename,
-                path: req.file.path,
-                size: req.file.size,
-                mimeType: req.file.mimetype,
-                url: buildUploadUrl(req, req.file.filename)
-            })
-        }
+        uploadSingleImage(req, res, function (error) {
+            if (handleUploadError(res, error)) {
+                return;
+            }
+
+            if (!req.file) {
+                return res.status(400).send({
+                    message: 'file khong duoc rong'
+                });
+            }
+
+            return res.send(sendUploadFileResponse(req, req.file));
+        });
     })
 
 router.get('/:filename', function (req, res, next) {
@@ -109,29 +148,21 @@ router.get('/:filename', function (req, res, next) {
     res.sendFile(filename)
 })
 
-router.post('/multiple_images', adminGuard, uploadImage.array('files', 5)
+router.post('/multiple_images', adminGuard
     , function (req, res, next) {
-        if (!req.files) {
-            res.status(400).send({
-                message: "file khong duoc rong"
-            })
-        } else {
-            // res.send({
-            //     filename: req.file.filename,
-            //     path: req.file.path,
-            //     size: req.file.size
-            // })
+        uploadMultipleImages(req, res, function (error) {
+            if (handleUploadError(res, error)) {
+                return;
+            }
 
-            res.send(req.files.map(f => {
-                return {
-                    filename: f.filename,
-                    path: f.path,
-                    size: f.size,
-                    mimeType: f.mimetype,
-                    url: buildUploadUrl(req, f.filename)
-                }
-            }))
-        }
+            if (!req.files || req.files.length === 0) {
+                return res.status(400).send({
+                    message: 'file khong duoc rong'
+                });
+            }
+
+            return res.send(req.files.map(f => sendUploadFileResponse(req, f)));
+        });
     })
 
 router.post('/excel', adminGuard, uploadExcel.single('file')
