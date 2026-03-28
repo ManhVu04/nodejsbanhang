@@ -4,6 +4,9 @@ let slugify = require('slugify')
 let productSchema = require('../schemas/products')
 let inventorySchema = require('../schemas/inventories')
 let mongoose = require('mongoose')
+let { CheckLogin, CheckRole } = require('../utils/authHandler')
+
+const adminGuard = [CheckLogin, CheckRole(['Admin'])];
 
 // GET /search — Full-text search with filters
 router.get('/search', async (req, res) => {
@@ -88,7 +91,7 @@ router.get('/:id', async (req, res) => {//req.params
 // REPLICA SET
 // LOCAL : bat replica set
 // ATLAS: co san
-router.post('/', async (req, res) => {
+router.post('/', adminGuard, async (req, res) => {
     let session = await mongoose.startSession()
     session.startTransaction()
     try {
@@ -106,7 +109,6 @@ router.post('/', async (req, res) => {
             sku: req.body.sku
         })
         await newProducts.save({ session })
-        console.log(newProducts);
         let newInventory = new inventorySchema({
             product: newProducts._id,
             stock: 0
@@ -119,10 +121,10 @@ router.post('/', async (req, res) => {
     } catch (error) {
         await session.abortTransaction();
         await session.endSession()
-        res.status(404).send(error.message)
+        res.status(400).send({ message: error.message })
     }
 })
-router.put('/:id', async (req, res) => {
+router.put('/:id', adminGuard, async (req, res) => {
     try {
         let result = await productSchema.findOne({
             isDeleted: false,
@@ -133,19 +135,27 @@ router.put('/:id', async (req, res) => {
             for (const key of keys) {
                 result[key] = req.body[key]
             }
+            if (req.body.title) {
+                result.slug = slugify(req.body.title, {
+                    replacement: '-',
+                    lower: false,
+                    remove: undefined,
+                });
+            }
             await result.save();
+            res.send(result);
         } else {
             res.status(404).send({
                 message: "ID NOT FOUND"
             })
         }
     } catch (error) {
-        res.status(404).send({
-            message: "SOMETHING WENT WRONG"
+        res.status(400).send({
+            message: error.message || "SOMETHING WENT WRONG"
         })
     }
 })
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', adminGuard, async (req, res) => {
     try {
         let result = await productSchema.findOne({
             isDeleted: false,
@@ -154,14 +164,15 @@ router.delete('/:id', async (req, res) => {
         if (result) {
             result.isDeleted = true;
             await result.save();
+            res.send(result);
         } else {
             res.status(404).send({
                 message: "ID NOT FOUND"
             })
         }
     } catch (error) {
-        res.status(404).send({
-            message: "SOMETHING WENT WRONG"
+        res.status(400).send({
+            message: error.message || "SOMETHING WENT WRONG"
         })
     }
 

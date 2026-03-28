@@ -15,7 +15,7 @@ export default function VNPayReturnPage() {
             .then(res => setResult(res.data))
             .catch(() => setResult({ code: '99', message: 'Lỗi xử lý thanh toán' }))
             .finally(() => setLoading(false));
-    }, []);
+    }, [searchParams]);
 
     if (loading) return <div style={{ textAlign: 'center', padding: 100 }}><Spin size="large" /><div>Đang xử lý thanh toán...</div></div>;
 

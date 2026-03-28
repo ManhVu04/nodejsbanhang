@@ -1,14 +1,43 @@
 const nodemailer = require("nodemailer");
+const { isProduction, mailConfig } = require('./appConfig');
 
-const transporter = nodemailer.createTransport({
-    host: "sandbox.smtp.mailtrap.io",
-    port: 25,
-    secure: false,
-    auth: {
-        user: "b0e57c838e21d2",
-        pass: "4626463d22f16a",
-    },
-});
+let transporter = null;
+
+function getTransporter() {
+    if (transporter) {
+        return transporter;
+    }
+
+    if (!mailConfig.host || !mailConfig.user || !mailConfig.pass) {
+        return null;
+    }
+
+    transporter = nodemailer.createTransport({
+        host: mailConfig.host,
+        port: mailConfig.port,
+        secure: mailConfig.secure,
+        auth: {
+            user: mailConfig.user,
+            pass: mailConfig.pass
+        }
+    });
+
+    return transporter;
+}
+
+async function safeSendMail(payload) {
+    let client = getTransporter();
+
+    if (!client) {
+        if (isProduction) {
+            throw new Error('SMTP is not configured for production');
+        }
+
+        return { skipped: true };
+    }
+
+    return await client.sendMail(payload);
+}
 
 function buildAccountPasswordTemplate(username, password) {
     return `
@@ -80,33 +109,30 @@ function buildOrderConfirmationTemplate(order) {
 
 module.exports = {
     sendMail: async (to, url) => {
-        const info = await transporter.sendMail({
-            from: 'Admin@hahah.com',
+        await safeSendMail({
+            from: mailConfig.from,
             to: to,
             subject: "request resetpassword email",
             text: "click vao day de reset",
             html: "click vao <a href=" + url + ">day</a> de reset",
         });
-        console.log("Message sent:", info.messageId);
     },
     sendAccountPasswordMail: async (to, username, password) => {
-        const info = await transporter.sendMail({
-            from: 'Admin@hahah.com',
+        await safeSendMail({
+            from: mailConfig.from,
             to: to,
             subject: "Tai khoan moi cua ban",
             text: `Tai khoan ${username} da duoc tao. Mat khau tam thoi: ${password}`,
             html: buildAccountPasswordTemplate(username, password),
         });
-        console.log("Account mail sent:", info.messageId);
     },
     sendOrderConfirmationMail: async (to, order) => {
-        const info = await transporter.sendMail({
-            from: 'MiniShop@ecommerce.com',
+        await safeSendMail({
+            from: mailConfig.from,
             to: to,
             subject: `Xác nhận đơn hàng #${order._id}`,
             text: `Đơn hàng #${order._id} đã được đặt thành công. Tổng: ${order.totalPrice.toLocaleString('vi-VN')}đ`,
             html: buildOrderConfirmationTemplate(order),
         });
-        console.log("Order confirmation mail sent:", info.messageId);
     }
 };

@@ -14,7 +14,7 @@ export default function RegisterPage() {
 
     useEffect(() => {
         dispatch(clearError());
-    }, []);
+    }, [dispatch]);
 
     const onFinish = async (values) => {
         try {
@@ -45,7 +45,11 @@ export default function RegisterPage() {
                     <Form.Item name="email" rules={[{ required: true, message: 'Nhập email' }, { type: 'email', message: 'Email không hợp lệ' }]}>
                         <Input prefix={<MailOutlined />} placeholder="Email" />
                     </Form.Item>
-                    <Form.Item name="password" rules={[{ required: true, message: 'Nhập mật khẩu' }, { min: 6, message: 'Tối thiểu 6 ký tự' }]}>
+                    <Form.Item name="password" rules={[
+                        { required: true, message: 'Nhập mật khẩu' },
+                        { min: 8, message: 'Tối thiểu 8 ký tự' },
+                        { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/, message: 'Cần chữ hoa, chữ thường, số và ký tự đặc biệt' }
+                    ]}>
                         <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu" />
                     </Form.Item>
                     <Form.Item name="confirmPassword" dependencies={['password']}

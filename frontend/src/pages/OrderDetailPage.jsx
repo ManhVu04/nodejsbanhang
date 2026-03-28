@@ -18,7 +18,7 @@ export default function OrderDetailPage() {
         api.get(`/orders/${id}`).then(res => setData(res.data))
             .catch(() => navigate('/orders'))
             .finally(() => setLoading(false));
-    }, [id]);
+    }, [id, navigate]);
 
     if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
     if (!data) return null;

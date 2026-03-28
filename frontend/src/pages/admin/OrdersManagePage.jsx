@@ -1,6 +1,6 @@
 import { Table, Tag, Select, message, Card, Typography, Space, Button } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../utils/api';
 
@@ -10,20 +10,53 @@ const statusLabels = { Pending: 'Chờ xử lý', Paid: 'Đã thanh toán', Ship
 
 export default function OrdersManagePage() {
     const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
     const [statusFilter, setStatusFilter] = useState('');
 
-    useEffect(() => { fetchOrders(); }, [page, statusFilter]);
-
-    const fetchOrders = () => {
+    const fetchOrders = useCallback(() => {
         setLoading(true);
         const params = { page, limit: 10 };
         if (statusFilter) params.status = statusFilter;
         api.get('/orders/admin/all', { params })
             .then(res => { setOrders(res.data.orders || []); setTotal(res.data.total || 0); })
             .finally(() => setLoading(false));
+    }, [page, statusFilter]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const params = { page, limit: 10 };
+        if (statusFilter) params.status = statusFilter;
+
+        api.get('/orders/admin/all', { params })
+            .then((res) => {
+                if (cancelled) {
+                    return;
+                }
+                setOrders(res.data.orders || []);
+                setTotal(res.data.total || 0);
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [page, statusFilter]);
+
+    const handlePageChange = (nextPage) => {
+        setLoading(true);
+        setPage(nextPage);
+    };
+
+    const handleStatusFilterChange = (value) => {
+        setLoading(true);
+        setStatusFilter(value || '');
+        setPage(1);
     };
 
     const handleStatusChange = async (orderId, newStatus) => {
@@ -66,13 +99,13 @@ export default function OrdersManagePage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
                 <Title level={4} style={{ margin: 0 }}>Quản lý đơn hàng</Title>
                 <Select placeholder="Lọc trạng thái" allowClear style={{ width: 160 }}
-                    value={statusFilter || undefined} onChange={v => { setStatusFilter(v || ''); setPage(1); }}>
+                    value={statusFilter || undefined} onChange={handleStatusFilterChange}>
                     {Object.keys(statusLabels).map(s => <Select.Option key={s} value={s}>{statusLabels[s]}</Select.Option>)}
                 </Select>
             </div>
             <Card style={{ borderRadius: 12 }}>
                 <Table dataSource={orders} columns={columns} loading={loading} rowKey="_id" size="small"
-                    pagination={{ total, current: page, pageSize: 10, onChange: setPage }} />
+                    pagination={{ total, current: page, pageSize: 10, onChange: handlePageChange }} />
             </Card>
         </div>
     );

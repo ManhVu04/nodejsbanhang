@@ -1,6 +1,6 @@
 import { Table, Button, Modal, Form, InputNumber, Input, message, Card, Typography, Tag, Tabs } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import api from '../../utils/api';
 
 const { Title } = Typography;
@@ -8,22 +8,43 @@ const { Title } = Typography;
 export default function InventoryManagePage() {
     const [inventories, setInventories] = useState([]);
     const [logs, setLogs] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [form] = Form.useForm();
 
-    useEffect(() => { fetchInventories(); fetchLogs(); }, []);
-
-    const fetchInventories = () => {
+    const fetchInventories = useCallback(() => {
         setLoading(true);
         api.get('/inventories').then(res => setInventories(res.data.inventories || []))
             .finally(() => setLoading(false));
-    };
+    }, []);
 
-    const fetchLogs = () => {
+    const fetchLogs = useCallback(() => {
         api.get('/inventories/logs?limit=50').then(res => setLogs(res.data.logs || [])).catch(() => {});
-    };
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        Promise.all([
+            api.get('/inventories'),
+            api.get('/inventories/logs?limit=50').catch(() => ({ data: { logs: [] } }))
+        ]).then(([inventoriesRes, logsRes]) => {
+            if (cancelled) {
+                return;
+            }
+            setInventories(inventoriesRes.data.inventories || []);
+            setLogs(logsRes.data.logs || []);
+        }).finally(() => {
+            if (!cancelled) {
+                setLoading(false);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const openAddStock = (product) => {
         setSelectedProduct(product);

@@ -1,17 +1,20 @@
 var express = require("express");
 var router = express.Router();
 let {CreateRoleValidator,validationResult} = require('../utils/validatorHandler')
+let { CheckLogin, CheckRole } = require('../utils/authHandler')
 
 let roleModel = require("../schemas/roles");
 
+const adminGuard = [CheckLogin, CheckRole(['Admin'])];
 
-router.get("/", async function (req, res, next) {
+
+router.get("/", adminGuard, async function (req, res, next) {
     let roles = await roleModel.find({ isDeleted: false });
     res.send(roles);
 });
 
 
-router.get("/:id", async function (req, res, next) {
+router.get("/:id", adminGuard, async function (req, res, next) {
     try {
         let result = await roleModel.find({ _id: req.params.id, isDeleted: false });
         if (result.length > 0) {
@@ -26,7 +29,7 @@ router.get("/:id", async function (req, res, next) {
 });
 
 
-router.post("/",CreateRoleValidator,validationResult, async function (req, res, next) {
+router.post("/", adminGuard, CreateRoleValidator, validationResult, async function (req, res, next) {
     try {
         let newItem = new roleModel({
             name: req.body.name,
@@ -39,7 +42,7 @@ router.post("/",CreateRoleValidator,validationResult, async function (req, res, 
     }
 });
 
-router.put("/:id", async function (req, res, next) {
+router.put("/:id", adminGuard, async function (req, res, next) {
     try {
         let id = req.params.id;
         let updatedItem = await roleModel.findByIdAndUpdate(id, req.body, { new: true });
@@ -52,7 +55,7 @@ router.put("/:id", async function (req, res, next) {
     }
 });
 
-router.delete("/:id", async function (req, res, next) {
+router.delete("/:id", adminGuard, async function (req, res, next) {
     try {
         let id = req.params.id;
         let updatedItem = await roleModel.findByIdAndUpdate(

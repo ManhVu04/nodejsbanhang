@@ -16,14 +16,27 @@ export default function ProductDetailPage() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        setLoading(true);
+        let cancelled = false;
+
         api.get(`/products/${id}`).then((prodRes) => {
-            setProduct(prodRes.data);
+            if (!cancelled) {
+                setProduct(prodRes.data);
+            }
         }).catch(() => {
-            message.error('Không tìm thấy sản phẩm');
-            navigate('/products');
-        }).finally(() => setLoading(false));
-    }, [id]);
+            if (!cancelled) {
+                message.error('Không tìm thấy sản phẩm');
+                navigate('/products');
+            }
+        }).finally(() => {
+            if (!cancelled) {
+                setLoading(false);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [id, navigate]);
 
     const handleAddToCart = async () => {
         try {

@@ -15,7 +15,7 @@ export default function LoginPage() {
 
     useEffect(() => {
         dispatch(clearError());
-    }, []);
+    }, [dispatch]);
 
     const onFinish = async (values) => {
         try {
