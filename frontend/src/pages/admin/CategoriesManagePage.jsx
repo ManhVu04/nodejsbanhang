@@ -1,7 +1,7 @@
-import { Table, Button, Modal, Form, Input, message, Space, Popconfirm, Card, Typography } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, Input, message, Space, Popconfirm, Card, Typography, Upload, Image } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import { useEffect, useState, useCallback } from 'react';
-import api from '../../utils/api';
+import api, { resolveImageUrl } from '../../utils/api';
 
 const { Title } = Typography;
 
@@ -10,7 +10,9 @@ export default function CategoriesManagePage() {
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [editItem, setEditItem] = useState(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
     const [form] = Form.useForm();
+    const imageValue = Form.useWatch('image', form);
 
     const fetchCategories = useCallback(() => {
         setLoading(true);
@@ -19,30 +21,40 @@ export default function CategoriesManagePage() {
     }, []);
 
     useEffect(() => {
-        let cancelled = false;
-
-        api.get('/categories')
-            .then((res) => {
-                if (!cancelled) {
-                    setCategories(Array.isArray(res.data) ? res.data : []);
-                }
-            })
-            .finally(() => {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            });
-
-        return () => {
-            cancelled = true;
-        };
-    }, []);
+        fetchCategories();
+    }, [fetchCategories]);
 
     const openCreate = () => { setEditItem(null); form.resetFields(); setModalOpen(true); };
     const openEdit = (item) => {
         setEditItem(item);
         form.setFieldsValue({ name: item.name, image: item.image });
         setModalOpen(true);
+    };
+
+    const handleImageUpload = async ({ file, onSuccess, onError }) => {
+        try {
+            setUploadingImage(true);
+            let formData = new FormData();
+            formData.append('file', file);
+            let response = await api.post('/upload/an_image', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            form.setFieldValue('image', response.data.filename);
+            message.success('Da tai anh len server');
+            if (onSuccess) {
+                onSuccess(response.data, file);
+            }
+        } catch (err) {
+            message.error(err.response?.data?.message || 'Tai anh that bai');
+            if (onError) {
+                onError(err);
+            }
+        } finally {
+            setUploadingImage(false);
+        }
     };
 
     const handleSave = async () => {
@@ -71,7 +83,7 @@ export default function CategoriesManagePage() {
     const columns = [
         {
             title: 'Ảnh', dataIndex: 'image', width: 70,
-            render: img => <img src={img} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />
+            render: (img) => <img src={resolveImageUrl(img)} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />
         },
         { title: 'Tên', dataIndex: 'name' },
         { title: 'Slug', dataIndex: 'slug', ellipsis: true },
@@ -103,7 +115,22 @@ export default function CategoriesManagePage() {
                 onCancel={() => setModalOpen(false)} onOk={handleSave} okText="Lưu">
                 <Form form={form} layout="vertical">
                     <Form.Item name="name" label="Tên" rules={[{ required: true }]}><Input /></Form.Item>
-                    <Form.Item name="image" label="URL ảnh"><Input placeholder="https://..." /></Form.Item>
+                    <Form.Item name="image" label="Anh danh muc">
+                        <Input placeholder="filename.jpg" readOnly />
+                    </Form.Item>
+                    <Upload
+                        accept="image/*"
+                        maxCount={1}
+                        showUploadList={false}
+                        customRequest={handleImageUpload}
+                    >
+                        <Button icon={<UploadOutlined />} loading={uploadingImage}>Tai anh tu may tinh</Button>
+                    </Upload>
+                    {imageValue ? (
+                        <div style={{ marginTop: 12 }}>
+                            <Image src={resolveImageUrl(imageValue)} alt="preview" width={120} height={120} style={{ objectFit: 'cover', borderRadius: 8 }} />
+                        </div>
+                    ) : null}
                 </Form>
             </Modal>
         </div>

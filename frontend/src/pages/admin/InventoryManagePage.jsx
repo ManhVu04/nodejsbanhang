@@ -1,7 +1,7 @@
 import { Table, Button, Modal, Form, InputNumber, Input, message, Card, Typography, Tag, Tabs } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useEffect, useState, useCallback } from 'react';
-import api from '../../utils/api';
+import api, { resolveImageUrl } from '../../utils/api';
 
 const { Title } = Typography;
 
@@ -68,7 +68,7 @@ export default function InventoryManagePage() {
     const invColumns = [
         {
             title: 'Ảnh', width: 60,
-            render: (_, r) => <img src={r.product?.images?.[0] || 'https://i.imgur.com/cHddUCu.jpeg'} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
+            render: (_, r) => <img src={resolveImageUrl(r.product?.images?.[0])} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
         },
         { title: 'Sản phẩm', render: (_, r) => r.product?.title || 'N/A' },
         { title: 'SKU', render: (_, r) => r.product?.sku || 'N/A', width: 100 },

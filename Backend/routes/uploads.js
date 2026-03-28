@@ -17,6 +17,14 @@ let { CheckLogin, CheckRole } = require('../utils/authHandler')
 
 const adminGuard = [CheckLogin, CheckRole(['Admin'])];
 
+function buildUploadUrl(req, filename) {
+    let configuredFrontend = String(process.env.FRONTEND_URL || '').trim().replace(/\/$/, '');
+    if (configuredFrontend) {
+        return `${configuredFrontend}/api/v1/upload/${filename}`;
+    }
+    return `${req.protocol}://${req.get('host')}/api/v1/upload/${filename}`;
+}
+
 function randomPassword(length = 16) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
     const bytes = crypto.randomBytes(length);
@@ -72,7 +80,9 @@ router.post('/an_image', adminGuard, uploadImage.single('file')
             res.send({
                 filename: req.file.filename,
                 path: req.file.path,
-                size: req.file.size
+                size: req.file.size,
+                mimeType: req.file.mimetype,
+                url: buildUploadUrl(req, req.file.filename)
             })
         }
     })
@@ -98,7 +108,9 @@ router.post('/multiple_images', adminGuard, uploadImage.array('files', 5)
                 return {
                     filename: f.filename,
                     path: f.path,
-                    size: f.size
+                    size: f.size,
+                    mimeType: f.mimetype,
+                    url: buildUploadUrl(req, f.filename)
                 }
             }))
         }

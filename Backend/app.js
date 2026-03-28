@@ -53,6 +53,10 @@ app.use('/api/v1/orders', require('./routes/orders'));
 app.use('/api/v1/vnpay', require('./routes/vnpay'));
 app.use('/api/v1/dashboard', require('./routes/dashboard'));
 app.use('/api/v1/inventories', require('./routes/inventories'));
+app.use('/api/v1/vouchers', require('./routes/vouchers'));
+app.use('/api/v1/wishlists', require('./routes/wishlists'));
+app.use('/api/v1/reviews', require('./routes/reviews'));
+app.use('/api/v1/returns', require('./routes/returns'));
 
 const isProduction = process.env.NODE_ENV === 'production';
 const configuredMongoUri = (process.env.MONGODB_URI || '').trim();

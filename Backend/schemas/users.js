@@ -40,6 +40,13 @@ const userSchema = new mongoose.Schema(
       ref: "role",
       required: true
     },
+    wishlist: {
+      type: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'product'
+      }],
+      default: []
+    },
 
     loginCount: {
       type: Number,
@@ -67,9 +74,10 @@ userSchema.pre('save', function () {
   }
 })
 userSchema.pre('findOneAndUpdate', function () {
-  let salt = bcrypt.genSaltSync(10);
-  console.log(this);
-  this._update.password = bcrypt.hashSync(this._update.password, salt);
+  if (this._update && typeof this._update.password === 'string' && this._update.password.length > 0) {
+    let salt = bcrypt.genSaltSync(10);
+    this._update.password = bcrypt.hashSync(this._update.password, salt);
+  }
 })
 
 module.exports = mongoose.model("user", userSchema);

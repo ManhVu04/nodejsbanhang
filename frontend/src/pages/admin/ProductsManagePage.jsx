@@ -1,7 +1,7 @@
-import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Space, Tag, Popconfirm, Card, Typography } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Space, Tag, Popconfirm, Card, Typography, Upload, Image } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import { useEffect, useState, useCallback } from 'react';
-import api from '../../utils/api';
+import api, { resolveImageUrl } from '../../utils/api';
 
 const { Title } = Typography;
 
@@ -11,7 +11,9 @@ export default function ProductsManagePage() {
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [editItem, setEditItem] = useState(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
     const [form] = Form.useForm();
+    const imageValue = Form.useWatch('images', form);
 
     const fetchAll = useCallback(() => {
         setLoading(true);
@@ -24,26 +26,8 @@ export default function ProductsManagePage() {
     }, []);
 
     useEffect(() => {
-        let cancelled = false;
-
-        Promise.all([api.get('/products'), api.get('/categories')])
-            .then(([p, c]) => {
-                if (cancelled) {
-                    return;
-                }
-                setProducts(Array.isArray(p.data) ? p.data : []);
-                setCategories(Array.isArray(c.data) ? c.data : []);
-            })
-            .finally(() => {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            });
-
-        return () => {
-            cancelled = true;
-        };
-    }, []);
+        fetchAll();
+    }, [fetchAll]);
 
     const openCreate = () => { setEditItem(null); form.resetFields(); setModalOpen(true); };
     const openEdit = (item) => {
@@ -52,10 +36,36 @@ export default function ProductsManagePage() {
         setModalOpen(true);
     };
 
+    const handleImageUpload = async ({ file, onSuccess, onError }) => {
+        try {
+            setUploadingImage(true);
+            let formData = new FormData();
+            formData.append('file', file);
+            let response = await api.post('/upload/an_image', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            form.setFieldValue('images', response.data.filename);
+            message.success('Da tai anh len server');
+            if (onSuccess) {
+                onSuccess(response.data, file);
+            }
+        } catch (err) {
+            message.error(err.response?.data?.message || 'Tai anh that bai');
+            if (onError) {
+                onError(err);
+            }
+        } finally {
+            setUploadingImage(false);
+        }
+    };
+
     const handleSave = async () => {
         try {
             let values = await form.validateFields();
-            if (values.images) values.images = [values.images];
+            values.images = values.images ? [values.images] : [];
             if (editItem) {
                 await api.put(`/products/${editItem._id}`, values);
                 message.success('Cập nhật thành công');
@@ -79,7 +89,7 @@ export default function ProductsManagePage() {
     const columns = [
         {
             title: 'Ảnh', dataIndex: 'images', width: 70,
-            render: imgs => <img src={imgs?.[0] || 'https://i.imgur.com/cHddUCu.jpeg'} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />
+            render: (imgs) => <img src={resolveImageUrl(imgs?.[0])} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />
         },
         { title: 'Tên', dataIndex: 'title', ellipsis: true },
         { title: 'SKU', dataIndex: 'sku', width: 100 },
@@ -119,7 +129,22 @@ export default function ProductsManagePage() {
                         <Select>{categories.filter(c => !c.isDeleted).map(c => <Select.Option key={c._id} value={c._id}>{c.name}</Select.Option>)}</Select>
                     </Form.Item>
                     <Form.Item name="description" label="Mô tả"><Input.TextArea rows={3} /></Form.Item>
-                    <Form.Item name="images" label="URL ảnh"><Input placeholder="https://..." /></Form.Item>
+                    <Form.Item name="images" label="Anh san pham">
+                        <Input placeholder="filename.jpg" readOnly />
+                    </Form.Item>
+                    <Upload
+                        accept="image/*"
+                        maxCount={1}
+                        showUploadList={false}
+                        customRequest={handleImageUpload}
+                    >
+                        <Button icon={<UploadOutlined />} loading={uploadingImage}>Tai anh tu may tinh</Button>
+                    </Upload>
+                    {imageValue ? (
+                        <div style={{ marginTop: 12 }}>
+                            <Image src={resolveImageUrl(imageValue)} alt="preview" width={120} height={120} style={{ objectFit: 'cover', borderRadius: 8 }} />
+                        </div>
+                    ) : null}
                 </Form>
             </Modal>
         </div>

@@ -41,6 +41,26 @@ let orderSchema = mongoose.Schema({
         required: true,
         min: 0
     },
+    subTotalPrice: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    discountAmount: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    voucher: {
+        voucherId: {
+            type: mongoose.Types.ObjectId,
+            ref: 'voucher'
+        },
+        code: {
+            type: String,
+            default: ''
+        }
+    },
     status: {
         type: String,
         enum: ['Pending', 'Paid', 'Shipped', 'Delivered', 'Cancelled'],
@@ -58,6 +78,11 @@ let orderSchema = mongoose.Schema({
     note: {
         type: String,
         default: ''
+    },
+    afterSaleStatus: {
+        type: String,
+        enum: ['None', 'Requested', 'Approved', 'Rejected', 'Refunded'],
+        default: 'None'
     }
 }, {
     timestamps: true

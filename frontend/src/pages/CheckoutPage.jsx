@@ -15,6 +15,9 @@ export default function CheckoutPage() {
     const [paymentMethod, setPaymentMethod] = useState('COD');
     const [shippingAddress, setShippingAddress] = useState('');
     const [note, setNote] = useState('');
+    const [voucherCode, setVoucherCode] = useState('');
+    const [voucherInfo, setVoucherInfo] = useState(null);
+    const [voucherLoading, setVoucherLoading] = useState(false);
     const [loading, setLoading] = useState(false);
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -26,6 +29,32 @@ export default function CheckoutPage() {
     }, [dispatch, user]);
 
     const total = items.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
+    const discountAmount = voucherInfo?.discountAmount || 0;
+    const finalTotal = Math.max(0, total - discountAmount);
+
+    const handleApplyVoucher = async () => {
+        let code = voucherCode.trim();
+        if (!code) {
+            setVoucherInfo(null);
+            return;
+        }
+
+        try {
+            setVoucherLoading(true);
+            let response = await api.get(`/vouchers/validate/${encodeURIComponent(code)}`, {
+                params: {
+                    subtotal: total
+                }
+            });
+            setVoucherInfo(response.data);
+            message.success(`Da ap dung voucher ${response.data.code}`);
+        } catch (err) {
+            setVoucherInfo(null);
+            message.error(err.response?.data?.message || 'Voucher khong hop le');
+        } finally {
+            setVoucherLoading(false);
+        }
+    };
 
     const handlePlaceOrder = async () => {
         if (!shippingAddress.trim()) {
@@ -34,7 +63,12 @@ export default function CheckoutPage() {
         }
         setLoading(true);
         try {
-            const res = await api.post('/orders', { paymentMethod, shippingAddress, note });
+            const res = await api.post('/orders', {
+                paymentMethod,
+                shippingAddress,
+                note,
+                voucherCode: voucherInfo?.code || ''
+            });
             dispatch(clearCart());
             await dispatch(fetchCart());
 
@@ -109,10 +143,35 @@ export default function CheckoutPage() {
                             )}
                         />
                         <Divider style={{ margin: '8px 0' }} />
+                        <div style={{ marginBottom: 12 }}>
+                            <Text strong>Ma giam gia</Text>
+                            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                                <Input
+                                    value={voucherCode}
+                                    onChange={(event) => setVoucherCode(event.target.value.toUpperCase())}
+                                    placeholder="Nhap voucher"
+                                />
+                                <Button onClick={handleApplyVoucher} loading={voucherLoading}>Ap dung</Button>
+                            </div>
+                            {voucherInfo ? (
+                                <Text type="success" style={{ display: 'block', marginTop: 6 }}>
+                                    {voucherInfo.code}: -{discountAmount.toLocaleString('vi-VN')}d
+                                </Text>
+                            ) : null}
+                        </div>
+                        <Divider style={{ margin: '8px 0' }} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <Text>Tam tinh</Text>
+                            <Text>{total.toLocaleString('vi-VN')}d</Text>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <Text>Giam gia</Text>
+                            <Text type="danger">-{discountAmount.toLocaleString('vi-VN')}d</Text>
+                        </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <Title level={4} style={{ margin: 0 }}>Tổng</Title>
                             <Title level={4} style={{ margin: 0, color: '#e74c3c' }}>
-                                {total.toLocaleString('vi-VN')}đ
+                                {finalTotal.toLocaleString('vi-VN')}đ
                             </Title>
                         </div>
                         <Button type="primary" size="large" block loading={loading}

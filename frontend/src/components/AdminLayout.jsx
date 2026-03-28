@@ -1,5 +1,5 @@
 import { Layout, Menu } from 'antd';
-import { DashboardOutlined, ShoppingOutlined, AppstoreOutlined, InboxOutlined, DatabaseOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { DashboardOutlined, ShoppingOutlined, AppstoreOutlined, InboxOutlined, DatabaseOutlined, ArrowLeftOutlined, GiftOutlined, RollbackOutlined } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 
 const { Sider, Content } = Layout;
@@ -10,6 +10,8 @@ const menuItems = [
     { key: '/admin/categories', icon: <AppstoreOutlined />, label: 'Danh mục' },
     { key: '/admin/orders', icon: <InboxOutlined />, label: 'Đơn hàng' },
     { key: '/admin/inventory', icon: <DatabaseOutlined />, label: 'Kho hàng' },
+    { key: '/admin/vouchers', icon: <GiftOutlined />, label: 'Voucher' },
+    { key: '/admin/returns', icon: <RollbackOutlined />, label: 'Đổi trả / Hoàn tiền' },
     { type: 'divider' },
     { key: '/', icon: <ArrowLeftOutlined />, label: 'Về trang chủ' }
 ];

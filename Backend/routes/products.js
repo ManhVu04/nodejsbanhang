@@ -69,12 +69,55 @@ router.get('/', async (req, res) => {
     )
     res.send(result)
 })
+router.get('/:id/related', async (req, res) => {
+    try {
+        let limit = Number(req.query.limit || 4);
+        if (!Number.isInteger(limit) || limit < 1) {
+            limit = 4;
+        }
+
+        let currentProduct = await productSchema.findOne({
+            _id: req.params.id,
+            isDeleted: false
+        });
+
+        if (!currentProduct) {
+            return res.status(404).send({ message: 'ID NOT FOUND' });
+        }
+
+        let related = await productSchema.find({
+            isDeleted: false,
+            _id: { $ne: currentProduct._id },
+            category: currentProduct.category
+        })
+            .populate({ path: 'category', select: 'name' })
+            .sort({ createdAt: -1 })
+            .limit(limit);
+
+        if (related.length < limit) {
+            let fill = await productSchema.find({
+                isDeleted: false,
+                _id: {
+                    $nin: [currentProduct._id, ...related.map((item) => item._id)]
+                }
+            })
+                .populate({ path: 'category', select: 'name' })
+                .sort({ createdAt: -1 })
+                .limit(limit - related.length);
+            related = related.concat(fill);
+        }
+
+        return res.send(related);
+    } catch (error) {
+        return res.status(400).send({ message: error.message });
+    }
+})
 router.get('/:id', async (req, res) => {//req.params
     try {
         let result = await productSchema.findOne({
             isDeleted: false,
             _id: req.params.id
-        })
+        }).populate({ path: 'category', select: 'name' })
         if (result) {
             res.send(result)
         } else {

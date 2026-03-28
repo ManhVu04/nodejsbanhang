@@ -3,6 +3,7 @@ import { ShoppingCartOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { addToCart } from '../store/slices/cartSlice';
+import { resolveImageUrl } from '../utils/api';
 
 export default function ProductCard({ product }) {
     const dispatch = useDispatch();
@@ -18,7 +19,7 @@ export default function ProductCard({ product }) {
         }
     };
 
-    const imageUrl = product.images?.[0] || 'https://i.imgur.com/cHddUCu.jpeg';
+    const imageUrl = resolveImageUrl(product.images?.[0]);
 
     return (
         <Link to={`/products/${product._id}`}>

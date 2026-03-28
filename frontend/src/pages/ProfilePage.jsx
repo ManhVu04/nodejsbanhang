@@ -1,14 +1,14 @@
 import { Card, Form, Input, Button, Typography, message, Divider, Avatar, Descriptions } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
-import api from '../utils/api';
+import api, { resolveImageUrl } from '../utils/api';
 
 const { Title } = Typography;
 
 export default function ProfilePage() {
     const { user } = useSelector(state => state.auth);
-    const avatarSrc = (typeof user?.avatarUrl === 'string' && user.avatarUrl.trim().startsWith('http'))
-        ? user.avatarUrl
+    const avatarSrc = (typeof user?.avatarUrl === 'string' && user.avatarUrl.trim().length > 0)
+        ? resolveImageUrl(user.avatarUrl)
         : undefined;
     const avatarText = (user?.fullName || user?.username || 'U').trim().charAt(0).toUpperCase();
 

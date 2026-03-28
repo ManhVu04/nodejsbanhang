@@ -7,6 +7,7 @@ import api from '../../utils/api';
 const { Title } = Typography;
 const statusColors = { Pending: 'orange', Paid: 'blue', Shipped: 'cyan', Delivered: 'green', Cancelled: 'red' };
 const statusLabels = { Pending: 'Chờ xử lý', Paid: 'Đã thanh toán', Shipped: 'Đang giao', Delivered: 'Đã giao', Cancelled: 'Đã hủy' };
+const afterSaleColors = { None: 'default', Requested: 'orange', Approved: 'blue', Rejected: 'red', Refunded: 'green' };
 
 export default function OrdersManagePage() {
     const [orders, setOrders] = useState([]);
@@ -86,6 +87,10 @@ export default function OrdersManagePage() {
                     ))}
                 </Select>
             )
+        },
+        {
+            title: 'Hau mai', dataIndex: 'afterSaleStatus', width: 110,
+            render: (status) => <Tag color={afterSaleColors[status || 'None']}>{status || 'None'}</Tag>
         },
         { title: 'Ngày', dataIndex: 'createdAt', width: 100, render: d => new Date(d).toLocaleDateString('vi-VN') },
         {

@@ -8,8 +8,10 @@ let inventoryModel = require('../schemas/inventories');
 let inventoryLogModel = require('../schemas/inventoryLogs');
 let paymentModel = require('../schemas/payments');
 let productModel = require('../schemas/products');
+let voucherModel = require('../schemas/vouchers');
 let { sendOrderConfirmationMail } = require('../utils/mailHandler');
 let crypto = require('crypto');
+let { normalizeVoucherCode, validateVoucherForOrder } = require('../utils/voucherHandler');
 
 // POST / — Place order (transaction-based concurrency control)
 router.post('/', CheckLogin, async function (req, res) {
@@ -17,7 +19,8 @@ router.post('/', CheckLogin, async function (req, res) {
     session.startTransaction();
     try {
         let user = req.user;
-        let { paymentMethod, shippingAddress, note } = req.body;
+        let { paymentMethod, shippingAddress, note, voucherCode } = req.body;
+        let normalizedVoucherCode = normalizeVoucherCode(voucherCode);
 
         if (!paymentMethod || !['COD', 'VNPay'].includes(paymentMethod)) {
             throw new Error('Phương thức thanh toán không hợp lệ');
@@ -30,7 +33,7 @@ router.post('/', CheckLogin, async function (req, res) {
         }
 
         let orderItems = [];
-        let totalPrice = 0;
+        let subTotalPrice = 0;
 
         // For each cart item: atomically deduct stock to prevent over-selling
         for (let cartItem of cart.products) {
@@ -64,7 +67,7 @@ router.post('/', CheckLogin, async function (req, res) {
                 priceAtPurchase: product.price,
                 subtotal: subtotal
             });
-            totalPrice += subtotal;
+            subTotalPrice += subtotal;
 
             // Log inventory out
             await new inventoryLogModel({
@@ -76,15 +79,55 @@ router.post('/', CheckLogin, async function (req, res) {
             }).save({ session });
         }
 
+        let discountAmount = 0;
+        let appliedVoucher = null;
+
+        if (normalizedVoucherCode) {
+            let voucher = await voucherModel.findOne({
+                code: normalizedVoucherCode,
+                isDeleted: false
+            }).session(session);
+
+            let validation = validateVoucherForOrder(voucher, subTotalPrice);
+            if (!validation.valid) {
+                throw new Error(validation.message);
+            }
+
+            if (voucher.perUserLimit) {
+                let usedByUser = await orderModel.countDocuments({
+                    user: user._id,
+                    'voucher.code': voucher.code,
+                    status: { $ne: 'Cancelled' }
+                }).session(session);
+
+                if (usedByUser >= voucher.perUserLimit) {
+                    throw new Error('Ban da dung het luot cho ma voucher nay');
+                }
+            }
+
+            discountAmount = validation.discount;
+            appliedVoucher = voucher;
+        }
+
+        let totalPrice = Math.max(0, subTotalPrice - discountAmount);
+
         // Create order
         let newOrder = new orderModel({
             user: user._id,
             items: orderItems,
+            subTotalPrice: subTotalPrice,
+            discountAmount: discountAmount,
             totalPrice: totalPrice,
             status: paymentMethod === 'COD' ? 'Pending' : 'Pending',
             paymentMethod: paymentMethod,
             shippingAddress: shippingAddress || '',
-            note: note || ''
+            note: note || '',
+            voucher: appliedVoucher
+                ? {
+                    voucherId: appliedVoucher._id,
+                    code: appliedVoucher.code
+                }
+                : { code: '' }
         });
         await newOrder.save({ session });
 
@@ -99,6 +142,11 @@ router.post('/', CheckLogin, async function (req, res) {
             idempotencyKey: idempotencyKey
         });
         await newPayment.save({ session });
+
+        if (appliedVoucher) {
+            appliedVoucher.usedCount += 1;
+            await appliedVoucher.save({ session });
+        }
 
         // Clear user's cart
         cart.products = [];
@@ -249,6 +297,17 @@ router.put('/:id/status', CheckLogin, CheckRole(['Admin']), async function (req,
                         order: existingOrder._id,
                         performedBy: req.user._id
                     }).save({ session });
+                }
+
+                if (existingOrder.voucher && existingOrder.voucher.voucherId) {
+                    await voucherModel.findOneAndUpdate(
+                        {
+                            _id: existingOrder.voucher.voucherId,
+                            usedCount: { $gt: 0 }
+                        },
+                        { $inc: { usedCount: -1 } },
+                        { session }
+                    );
                 }
 
                 await orderModel.findByIdAndUpdate(

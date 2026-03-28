@@ -11,7 +11,7 @@ let categorySchema = mongoose.Schema({
     },
     image: {
         type: String,
-        default: "https://i.imgur.com/QkIa5tT.jpeg"
+        default: ""
     },
     isDeleted: {
         type: Boolean,

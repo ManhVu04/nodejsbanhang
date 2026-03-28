@@ -26,7 +26,18 @@ let productSchema = mongoose.Schema({
     },
     images:{
         type:[String],
-        default:"https://i.imgur.com/cHddUCu.jpeg"
+        default:[]
+    },
+    averageRating: {
+        type: Number,
+        min: 0,
+        max: 5,
+        default: 0
+    },
+    reviewCount: {
+        type: Number,
+        min: 0,
+        default: 0
     },
     isDeleted:{
         type:Boolean,
