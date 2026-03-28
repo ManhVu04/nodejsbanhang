@@ -15,7 +15,7 @@ export default function CartPage() {
 
     useEffect(() => {
         if (user) dispatch(fetchCart());
-    }, [user]);
+    }, [dispatch, user]);
 
     const getTotal = () => {
         return items.reduce((sum, item) => {

@@ -29,7 +29,7 @@ export const fetchMe = createAsyncThunk('auth/fetchMe', async (_, { rejectWithVa
         const res = await api.get('/auth/me');
         localStorage.setItem('user', JSON.stringify(res.data));
         return res.data;
-    } catch (err) {
+    } catch {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         return rejectWithValue('Not logged in');

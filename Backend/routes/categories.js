@@ -1,9 +1,10 @@
 const express = require('express')
 let router = express.Router()
-let { GenID } = require('../utils/IDHandler')
 let slugify = require('slugify')
 let categorySchema = require('../schemas/categories');
-let productSchema = require('../schemas/products')
+let { CheckLogin, CheckRole } = require('../utils/authHandler')
+
+const adminGuard = [CheckLogin, CheckRole(['Admin'])];
 
 
 router.get('/:id', async (req, res) => {//req.params
@@ -48,7 +49,7 @@ router.get('/:id/products', async (req, res) => {//req.params
         res.send(filterData.products)
     }
 })
-router.post('/', async function (req, res, next) {
+router.post('/', adminGuard, async function (req, res, next) {
     let newItem = new categorySchema({
         name: req.body.name,
         slug: slugify(req.body.name, {
@@ -61,27 +62,19 @@ router.post('/', async function (req, res, next) {
     await newItem.save();
     res.send(newItem)
 })
-router.put('/:id', async function (req, res, next) {
+router.put('/:id', adminGuard, async function (req, res, next) {
     try {
-        // let getItem = await categorySchema.findOne({
-        //     isDeleted: false,
-        //     _id: req.params.id
-        // });
-        // if (!getItem) {
-        //     res.status(404).send(
-        //         { message: "ID NOT FOUND" }
-        //     )
-        // } else {
-        //     let keys  = Object.keys(req.body);
-        //     for (const key of keys) {
-        //         getItem[key]=req.body[key];
-        //     }
-        //     await getItem.save();
-        //     res.send(getItem)
-        // }
-        //c2
+        let updateData = { ...req.body };
+        if (req.body.name) {
+            updateData.slug = slugify(req.body.name, {
+                replacement: '-',
+                lower: false,
+                remove: undefined,
+            });
+        }
+
         let getItem = await categorySchema.findByIdAndUpdate(
-            req.params.id, req.body, {
+            req.params.id, updateData, {
             new: true
         }
         )
@@ -93,12 +86,12 @@ router.put('/:id', async function (req, res, next) {
             })
         }
     } catch (error) {
-        res.status(404).send(
+        res.status(400).send(
             { message: error.message }
         )
     }
 })
-router.delete('/:id', async function (req, res, next) {
+router.delete('/:id', adminGuard, async function (req, res, next) {
     try {
         let getItem = await categorySchema.findOne({
             isDeleted: false,
@@ -115,7 +108,7 @@ router.delete('/:id', async function (req, res, next) {
         }
 
     } catch (error) {
-        res.status(404).send(
+        res.status(400).send(
             { message: error.message }
         )
     }

@@ -8,10 +8,8 @@ let storage = multer.diskStorage({
     },
     filename: function (req, file, cb) {
         //name + ext
-        console.log(file);
         let ext = path.extname(file.originalname);//wtdd.png->.png
         let fileName = Date.now() + '-' + Math.round(Math.random() * 1000_000_000) + ext;
-        console.log(fileName);
         cb(null, fileName)
     }
 })
@@ -32,12 +30,12 @@ let filterExcel = function (req, file, cb) {
 module.exports = {
     uploadImage: multer({
         storage: storage,
-        limits: 5 * 1025 * 1025,
+        limits: 5 * 1024 * 1024,
         fileFilter: filterImage
     }),
     uploadExcel: multer({
         storage: storage,
-        limits: 5 * 1025 * 1025,
+        limits: 5 * 1024 * 1024,
         fileFilter: filterExcel
     })
 }

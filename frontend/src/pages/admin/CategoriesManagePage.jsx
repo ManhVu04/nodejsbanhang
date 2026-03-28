@@ -1,24 +1,42 @@
 import { Table, Button, Modal, Form, Input, message, Space, Popconfirm, Card, Typography } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import api from '../../utils/api';
 
 const { Title } = Typography;
 
 export default function CategoriesManagePage() {
     const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [editItem, setEditItem] = useState(null);
     const [form] = Form.useForm();
 
-    useEffect(() => { fetchCategories(); }, []);
-
-    const fetchCategories = () => {
+    const fetchCategories = useCallback(() => {
         setLoading(true);
         api.get('/categories').then(res => setCategories(Array.isArray(res.data) ? res.data : []))
             .finally(() => setLoading(false));
-    };
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        api.get('/categories')
+            .then((res) => {
+                if (!cancelled) {
+                    setCategories(Array.isArray(res.data) ? res.data : []);
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const openCreate = () => { setEditItem(null); form.resetFields(); setModalOpen(true); };
     const openEdit = (item) => {

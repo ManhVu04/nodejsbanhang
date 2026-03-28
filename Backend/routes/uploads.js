@@ -13,6 +13,9 @@ let roleModel = require('../schemas/roles')
 let { sendAccountPasswordMail } = require('../utils/mailHandler')
 let crypto = require('crypto')
 let slugify = require('slugify')
+let { CheckLogin, CheckRole } = require('../utils/authHandler')
+
+const adminGuard = [CheckLogin, CheckRole(['Admin'])];
 
 function randomPassword(length = 16) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
@@ -59,10 +62,10 @@ function getCellStringValue(cell) {
     return value.toString().trim();
 }
 
-router.post('/an_image', uploadImage.single('file')
+router.post('/an_image', adminGuard, uploadImage.single('file')
     , function (req, res, next) {
         if (!req.file) {
-            res.send({
+            res.status(400).send({
                 message: "file khong duoc rong"
             })
         } else {
@@ -78,10 +81,10 @@ router.get('/:filename', function (req, res, next) {
     res.sendFile(filename)
 })
 
-router.post('/multiple_images', uploadImage.array('files', 5)
+router.post('/multiple_images', adminGuard, uploadImage.array('files', 5)
     , function (req, res, next) {
         if (!req.files) {
-            res.send({
+            res.status(400).send({
                 message: "file khong duoc rong"
             })
         } else {
@@ -101,10 +104,10 @@ router.post('/multiple_images', uploadImage.array('files', 5)
         }
     })
 
-router.post('/excel', uploadExcel.single('file')
+router.post('/excel', adminGuard, uploadExcel.single('file')
     , async function (req, res, next) {
         if (!req.file) {
-            res.send({
+            res.status(400).send({
                 message: "file khong duoc rong"
             })
         } else {
@@ -218,10 +221,10 @@ router.post('/excel', uploadExcel.single('file')
 
     })
 
-router.post('/excel/users', uploadExcel.single('file')
+router.post('/excel/users', adminGuard, uploadExcel.single('file')
     , async function (req, res, next) {
         if (!req.file) {
-            return res.send({
+            return res.status(400).send({
                 message: "file khong duoc rong"
             })
         }

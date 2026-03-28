@@ -11,7 +11,7 @@ export default function ProductsPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
 
@@ -30,39 +30,55 @@ export default function ProductsPage() {
     }, []);
 
     useEffect(() => {
-        fetchProducts();
+        let cancelled = false;
+        const params = { page, limit: 12 };
+        if (q) params.q = q;
+        if (category) params.category = category;
+        if (sort) params.sort = sort;
+        if (minPrice) params.minPrice = minPrice;
+        if (maxPrice) params.maxPrice = maxPrice;
+
+        api.get('/products/search', { params })
+            .then((res) => {
+                if (cancelled) {
+                    return;
+                }
+                const payload = res.data || {};
+                const nextProducts = Array.isArray(payload.products) ? payload.products : [];
+                const totalValue = Number(payload.total);
+                setProducts(nextProducts);
+                setTotal(Number.isFinite(totalValue) ? totalValue : 0);
+            })
+            .catch(() => {
+                if (cancelled) {
+                    return;
+                }
+                setProducts([]);
+                setTotal(0);
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
     }, [q, category, sort, minPrice, maxPrice, page]);
 
-    const fetchProducts = async () => {
-        setLoading(true);
-        try {
-            const params = { page, limit: 12 };
-            if (q) params.q = q;
-            if (category) params.category = category;
-            if (sort) params.sort = sort;
-            if (minPrice) params.minPrice = minPrice;
-            if (maxPrice) params.maxPrice = maxPrice;
-
-            const res = await api.get('/products/search', { params });
-            const payload = res.data || {};
-            const nextProducts = Array.isArray(payload.products) ? payload.products : [];
-            const totalValue = Number(payload.total);
-
-            setProducts(nextProducts);
-            setTotal(Number.isFinite(totalValue) ? totalValue : 0);
-        } catch {
-            setProducts([]);
-            setTotal(0);
-        }
-        setLoading(false);
-    };
-
     const updateFilter = (key, value) => {
+        setLoading(true);
         const params = new URLSearchParams(searchParams);
         if (value) params.set(key, value);
         else params.delete(key);
         setSearchParams(params);
         setPage(1);
+    };
+
+    const handlePageChange = (nextPage) => {
+        setLoading(true);
+        setPage(nextPage);
     };
 
     return (
@@ -134,7 +150,7 @@ export default function ProductsPage() {
 
             {total > 12 && (
                 <div style={{ textAlign: 'center', marginTop: 32 }}>
-                    <Pagination current={page} total={total} pageSize={12} onChange={setPage} showTotal={(t) => `${t} sản phẩm`} />
+                    <Pagination current={page} total={total} pageSize={12} onChange={handlePageChange} showTotal={(t) => `${t} sản phẩm`} />
                 </div>
             )}
         </section>

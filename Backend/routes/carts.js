@@ -133,7 +133,13 @@ router.post('/decrease', CheckLogin, async function (req, res, next) {
 router.post('/modify', CheckLogin, async function (req, res, next) {
     let user = req.user;
     let productId = req.body.product;
-    let quantity = req.body.quantity;
+    let quantity = Number(req.body.quantity);
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+        return res.status(400).send({
+            message: 'so luong phai la so nguyen duong'
+        });
+    }
 
     let cart = await cartSchema.findOne({
         user: user._id
@@ -159,7 +165,7 @@ router.post('/modify', CheckLogin, async function (req, res, next) {
         return;
     } else {
         if (stock - quantity < 0) {
-            res.status(404).send({
+            res.status(400).send({
                 message: "san pham trong kho khong du"
             });
             return;

@@ -26,7 +26,7 @@ export const fetchCart = createAsyncThunk('cart/fetch', async (_, { rejectWithVa
 });
 
 // Sync guest cart to server on login
-export const syncGuestCart = createAsyncThunk('cart/syncGuest', async (_, { getState, rejectWithValue }) => {
+export const syncGuestCart = createAsyncThunk('cart/syncGuest', async (_, { rejectWithValue }) => {
     try {
         const guestCart = loadGuestCart();
         if (guestCart.length > 0) {

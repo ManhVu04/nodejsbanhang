@@ -30,7 +30,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 404 && error.response?.data === 'ban chua dang nhap') {
+        const status = error.response?.status;
+        const message = error.response?.data;
+        if ((status === 401 || status === 404) && message === 'ban chua dang nhap') {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
         }

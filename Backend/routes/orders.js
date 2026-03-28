@@ -215,14 +215,19 @@ router.put('/:id/status', CheckLogin, CheckRole(['Admin']), async function (req,
             return res.status(400).send({ message: 'Trạng thái không hợp lệ' });
         }
 
-        let order = await orderModel.findByIdAndUpdate(
-            req.params.id,
-            { status },
-            { new: true }
-        ).populate('items.product', 'title images price');
+        let existingOrder = await orderModel.findById(req.params.id)
+            .populate('items.product', 'title images price');
 
-        if (!order) {
+        if (!existingOrder) {
             return res.status(404).send({ message: 'Đơn hàng không tồn tại' });
+        }
+
+        if (existingOrder.status === 'Cancelled' && status !== 'Cancelled') {
+            return res.status(400).send({ message: 'Đơn đã hủy không thể chuyển trạng thái khác' });
+        }
+
+        if (existingOrder.status === status) {
+            return res.send({ message: 'Trạng thái đơn hàng không thay đổi', order: existingOrder });
         }
 
         // If cancelled, restore stock
@@ -230,7 +235,7 @@ router.put('/:id/status', CheckLogin, CheckRole(['Admin']), async function (req,
             let session = await mongoose.startSession();
             session.startTransaction();
             try {
-                for (let item of order.items) {
+                for (let item of existingOrder.items) {
                     await inventoryModel.findOneAndUpdate(
                         { product: item.product._id || item.product },
                         { $inc: { stock: item.quantity, soldCount: -item.quantity } },
@@ -240,19 +245,36 @@ router.put('/:id/status', CheckLogin, CheckRole(['Admin']), async function (req,
                         product: item.product._id || item.product,
                         type: 'IN',
                         quantity: item.quantity,
-                        reason: 'Hủy đơn hàng #' + order._id,
-                        order: order._id,
+                        reason: 'Hủy đơn hàng #' + existingOrder._id,
+                        order: existingOrder._id,
                         performedBy: req.user._id
                     }).save({ session });
                 }
+
+                await orderModel.findByIdAndUpdate(
+                    existingOrder._id,
+                    { status: 'Cancelled' },
+                    { session }
+                );
+
                 await session.commitTransaction();
                 await session.endSession();
+
+                let updatedOrder = await orderModel.findById(existingOrder._id)
+                    .populate('items.product', 'title images price');
+                return res.send({ message: 'Cập nhật trạng thái thành công', order: updatedOrder });
             } catch (txErr) {
                 await session.abortTransaction();
                 await session.endSession();
-                console.log('Failed to restore stock:', txErr.message);
+                return res.status(400).send({ message: txErr.message });
             }
         }
+
+        let order = await orderModel.findByIdAndUpdate(
+            req.params.id,
+            { status },
+            { new: true }
+        ).populate('items.product', 'title images price');
 
         // If marked as Paid, update payment
         if (status === 'Paid') {

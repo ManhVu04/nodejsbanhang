@@ -5,8 +5,10 @@ let userModel = require("../schemas/users");
 let userController = require('../controllers/users')
 let { CheckLogin, CheckRole } = require('../utils/authHandler')
 
+const adminGuard = [CheckLogin, CheckRole(['Admin'])];
+const adminOrModeratorGuard = [CheckLogin, CheckRole(['Admin', 'Moderator'])];
 
-router.get("/", CheckLogin, CheckRole("ADMIN", "MODERATOR"), async function (req, res, next) {
+router.get("/", adminOrModeratorGuard, async function (req, res, next) {
   let users = await userModel
     .find({ isDeleted: false })
     .populate({
@@ -16,7 +18,7 @@ router.get("/", CheckLogin, CheckRole("ADMIN", "MODERATOR"), async function (req
   res.send(users);
 });
 
-router.get("/:id",CheckLogin,CheckRole("ADMIN"), async function (req, res, next) {
+router.get("/:id", adminGuard, async function (req, res, next) {
   try {
     let result = await userModel
       .find({ _id: req.params.id, isDeleted: false })
@@ -31,7 +33,7 @@ router.get("/:id",CheckLogin,CheckRole("ADMIN"), async function (req, res, next)
   }
 });
 
-router.post("/", CreateUserValidator, validationResult, async function (req, res, next) {
+router.post("/", adminGuard, CreateUserValidator, validationResult, async function (req, res, next) {
   try {
     let newItem = await userController.CreateAnUser(
       req.body.username, req.body.password, req.body.email, req.body.role
@@ -42,7 +44,7 @@ router.post("/", CreateUserValidator, validationResult, async function (req, res
   }
 });
 
-router.put("/:id", async function (req, res, next) {
+router.put("/:id", adminGuard, async function (req, res, next) {
   try {
     let id = req.params.id;
     let updatedItem = await
@@ -58,7 +60,7 @@ router.put("/:id", async function (req, res, next) {
   }
 });
 
-router.delete("/:id", async function (req, res, next) {
+router.delete("/:id", adminGuard, async function (req, res, next) {
   try {
     let id = req.params.id;
     let updatedItem = await userModel.findByIdAndUpdate(

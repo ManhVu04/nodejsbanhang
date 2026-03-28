@@ -30,11 +30,44 @@ Add these secrets in your repository settings:
 - SERVER_APP_PATH: path on server where repo exists, example /opt/minishop
 - SERVER_ENV_FILE: full content of .env.production
 
+The SERVER_ENV_FILE must now include all application env vars used by backend auth/payment/mail:
+
+- MONGODB_URI
+- CORS_ORIGIN
+- FRONTEND_URL
+- JWT_SECRET
+- COOKIE_SECURE
+- COOKIE_SAME_SITE
+- SMTP_HOST
+- SMTP_PORT
+- SMTP_SECURE
+- SMTP_USER
+- SMTP_PASS
+- MAIL_FROM
+- VNP_TMN_CODE
+- VNP_HASH_SECRET
+- VNP_URL
+- VNP_RETURN_URL
+
 Example SERVER_ENV_FILE value:
 
 DOCKERHUB_USERNAME=your-dockerhub-username
-MONGODB_URI=mongodb://mongo:27017/NNPTUD-S3
+MONGODB_URI=mongodb://your-mongo-host:27017/NNPTUD-S3
 CORS_ORIGIN=https://your-domain.com
+FRONTEND_URL=https://your-domain.com/shop
+JWT_SECRET=replace-with-a-strong-random-secret
+COOKIE_SECURE=true
+COOKIE_SAME_SITE=none
+SMTP_HOST=smtp.your-provider.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-smtp-user
+SMTP_PASS=your-smtp-password
+MAIL_FROM=no-reply@your-domain.com
+VNP_TMN_CODE=your-vnpay-tmn-code
+VNP_HASH_SECRET=your-vnpay-hash-secret
+VNP_URL=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+VNP_RETURN_URL=https://your-domain.com/shop/vnpay-return
 
 ## 2) One-time server bootstrap
 

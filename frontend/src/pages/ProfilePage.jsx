@@ -1,14 +1,12 @@
 import { Card, Form, Input, Button, Typography, message, Divider, Avatar, Descriptions } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { useSelector, useDispatch } from 'react-redux';
-import { fetchMe } from '../store/slices/authSlice';
+import { useSelector } from 'react-redux';
 import api from '../utils/api';
 
 const { Title } = Typography;
 
 export default function ProfilePage() {
     const { user } = useSelector(state => state.auth);
-    const dispatch = useDispatch();
     const avatarSrc = (typeof user?.avatarUrl === 'string' && user.avatarUrl.trim().startsWith('http'))
         ? user.avatarUrl
         : undefined;
@@ -45,7 +43,11 @@ export default function ProfilePage() {
                     <Form.Item name="oldpassword" label="Mật khẩu cũ" rules={[{ required: true, message: 'Nhập mật khẩu cũ' }]}>
                         <Input.Password prefix={<LockOutlined />} />
                     </Form.Item>
-                    <Form.Item name="newpassword" label="Mật khẩu mới" rules={[{ required: true, message: 'Nhập mật khẩu mới' }, { min: 6, message: 'Tối thiểu 6 ký tự' }]}>
+                    <Form.Item name="newpassword" label="Mật khẩu mới" rules={[
+                        { required: true, message: 'Nhập mật khẩu mới' },
+                        { min: 8, message: 'Tối thiểu 8 ký tự' },
+                        { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/, message: 'Cần chữ hoa, chữ thường, số và ký tự đặc biệt' }
+                    ]}>
                         <Input.Password prefix={<LockOutlined />} />
                     </Form.Item>
                     <Form.Item name="confirm" label="Xác nhận" dependencies={['newpassword']}

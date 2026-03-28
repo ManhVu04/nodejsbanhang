@@ -15,7 +15,11 @@ module.exports = {
             role: role,
             loginCount: loginCount
         })
-        await newUser.save({session});
+        if (session) {
+            await newUser.save({ session });
+        } else {
+            await newUser.save();
+        }
         return newUser;
     },
     FindUserByUsername: async function (username) {
@@ -34,7 +38,7 @@ module.exports = {
             isDeleted: false,
             forgotPasswordToken: token
         })
-        if(result.forgotPasswordTokenExp>Date.now()){
+        if (result && result.forgotPasswordTokenExp && result.forgotPasswordTokenExp > Date.now()) {
             return result;
         }
         return false

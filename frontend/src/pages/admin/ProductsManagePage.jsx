@@ -1,6 +1,6 @@
 import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Space, Tag, Popconfirm, Card, Typography } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import api from '../../utils/api';
 
 const { Title } = Typography;
@@ -8,14 +8,12 @@ const { Title } = Typography;
 export default function ProductsManagePage() {
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [editItem, setEditItem] = useState(null);
     const [form] = Form.useForm();
 
-    useEffect(() => { fetchAll(); }, []);
-
-    const fetchAll = () => {
+    const fetchAll = useCallback(() => {
         setLoading(true);
         Promise.all([api.get('/products'), api.get('/categories')])
             .then(([p, c]) => {
@@ -23,7 +21,29 @@ export default function ProductsManagePage() {
                 setCategories(Array.isArray(c.data) ? c.data : []);
             })
             .finally(() => setLoading(false));
-    };
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        Promise.all([api.get('/products'), api.get('/categories')])
+            .then(([p, c]) => {
+                if (cancelled) {
+                    return;
+                }
+                setProducts(Array.isArray(p.data) ? p.data : []);
+                setCategories(Array.isArray(c.data) ? c.data : []);
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const openCreate = () => { setEditItem(null); form.resetFields(); setModalOpen(true); };
     const openEdit = (item) => {

@@ -25,14 +25,13 @@ module.exports = {
         body('password').notEmpty().withMessage("username khong duoc de trong").bail().isStrongPassword(options.password).withMessage(`password dai it nhat ${options.password.minLength} ki tu,trong do it nhat ${options.password.minUppercase} chu hoa, ${options.password.minLowercase} chu thuong, ${options.password.minNumbers} so, ${options.password.minSymbols} ki tu`),
     ],
     ChangPasswordValidator: [
-        body('email').notEmpty().withMessage("email khong duoc de trong").bail().isEmail().withMessage("email sai dinh dang"),
         body('oldpassword').notEmpty().withMessage("old password khong duoc de trong"),
         body('newpassword').notEmpty().withMessage("new password khong duoc de trong").bail().isStrongPassword(options.password).withMessage(`password dai it nhat ${options.password.minLength} ki tu,trong do it nhat ${options.password.minUppercase} chu hoa, ${options.password.minLowercase} chu thuong, ${options.password.minNumbers} so, ${options.password.minSymbols} ki tu`),
     ],
     validationResult: function (req, res, next) {
         let result = validationResult(req);
         if (result.errors.length > 0) {
-            res.status(404).send(result.errors.map(
+            res.status(400).send(result.errors.map(
                 function (e) {
                     return {
                         [e.path]: e.msg

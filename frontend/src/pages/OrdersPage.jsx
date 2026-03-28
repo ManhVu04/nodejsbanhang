@@ -19,17 +19,39 @@ export default function OrdersPage() {
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
 
-    useEffect(() => { fetchOrders(); }, [page]);
-
-    const fetchOrders = async () => {
+    const handlePageChange = (nextPage) => {
         setLoading(true);
-        try {
-            const res = await api.get('/orders', { params: { page, limit: 10 } });
-            setOrders(res.data.orders || []);
-            setTotal(res.data.total || 0);
-        } catch { }
-        setLoading(false);
+        setPage(nextPage);
     };
+
+    useEffect(() => {
+        let cancelled = false;
+
+        api.get('/orders', { params: { page, limit: 10 } })
+            .then((res) => {
+                if (cancelled) {
+                    return;
+                }
+                setOrders(res.data.orders || []);
+                setTotal(res.data.total || 0);
+            })
+            .catch(() => {
+                if (cancelled) {
+                    return;
+                }
+                setOrders([]);
+                setTotal(0);
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [page]);
 
     const columns = [
         {
@@ -72,7 +94,7 @@ export default function OrdersPage() {
             ) : (
                 <Card className="surface-card" style={{ borderRadius: 12 }}>
                     <Table dataSource={orders} columns={columns} loading={loading}
-                        rowKey="_id" pagination={{ total, current: page, pageSize: 10, onChange: setPage }} />
+                        rowKey="_id" pagination={{ total, current: page, pageSize: 10, onChange: handlePageChange }} />
                 </Card>
             )}
         </section>
