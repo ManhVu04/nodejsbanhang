@@ -38,6 +38,7 @@ The SERVER_ENV_FILE must now include all application env vars used by backend au
 - JWT_SECRET
 - COOKIE_SECURE
 - COOKIE_SAME_SITE
+- GOOGLE_CLIENT_ID
 - SMTP_HOST
 - SMTP_PORT
 - SMTP_SECURE
@@ -58,6 +59,7 @@ FRONTEND_URL=https://your-domain.com/shop
 JWT_SECRET=replace-with-a-strong-random-secret
 COOKIE_SECURE=true
 COOKIE_SAME_SITE=none
+GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
 SMTP_HOST=smtp.your-provider.com
 SMTP_PORT=587
 SMTP_SECURE=false

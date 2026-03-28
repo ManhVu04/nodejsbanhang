@@ -15,6 +15,19 @@ export const loginUser = createAsyncThunk('auth/login', async ({ username, passw
     }
 });
 
+export const googleLoginUser = createAsyncThunk('auth/googleLogin', async ({ credential }, { rejectWithValue }) => {
+    try {
+        const res = await api.post('/auth/google/login', { credential });
+        const token = res.data;
+        localStorage.setItem('token', token);
+        const userRes = await api.get('/auth/me');
+        localStorage.setItem('user', JSON.stringify(userRes.data));
+        return { token, user: userRes.data };
+    } catch (err) {
+        return rejectWithValue(err.response?.data?.message || err.response?.data || 'Đăng nhập Google thất bại');
+    }
+});
+
 export const registerUser = createAsyncThunk('auth/register', async ({ fullName, username, password, email }, { rejectWithValue }) => {
     try {
         const res = await api.post('/auth/register', { fullName, username, password, email });
@@ -69,6 +82,16 @@ const authSlice = createSlice({
                 state.user = action.payload.user;
             })
             .addCase(loginUser.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
+            .addCase(googleLoginUser.pending, (state) => { state.loading = true; state.error = null; })
+            .addCase(googleLoginUser.fulfilled, (state, action) => {
+                state.loading = false;
+                state.token = action.payload.token;
+                state.user = action.payload.user;
+            })
+            .addCase(googleLoginUser.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             })

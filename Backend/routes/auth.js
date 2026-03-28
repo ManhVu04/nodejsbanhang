@@ -7,12 +7,16 @@ let { CheckLogin } = require('../utils/authHandler')
 let jwt = require('jsonwebtoken')
 let bcrypt = require('bcrypt')
 let crypto = require('crypto')
+let { OAuth2Client } = require('google-auth-library')
 let { sendMail } = require('../utils/mailHandler')
 let mongoose = require('mongoose');
 let cartSchema = require('../schemas/carts')
-let { jwtSecret, cookieSecure, cookieSameSite, frontendUrl } = require('../utils/appConfig')
+let { jwtSecret, cookieSecure, cookieSameSite, frontendUrl, googleOAuthConfig } = require('../utils/appConfig')
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const googleOAuthClient = googleOAuthConfig.clientId
+    ? new OAuth2Client(googleOAuthConfig.clientId)
+    : null;
 
 function buildAuthCookieOptions(maxAge) {
     return {
@@ -26,6 +30,48 @@ function buildAuthCookieOptions(maxAge) {
 
 function validateResetPassword(password) {
     return typeof password === 'string' && password.length >= 8;
+}
+
+function normalizeUsernameSeed(value) {
+    let normalized = String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return normalized;
+}
+
+function selectUsernameSeed(email, fullName) {
+    let emailSeed = normalizeUsernameSeed(String(email || '').split('@')[0]);
+    if (emailSeed.length >= 3) {
+        return emailSeed.slice(0, 24);
+    }
+
+    let fullNameSeed = normalizeUsernameSeed(fullName);
+    if (fullNameSeed.length >= 3) {
+        return fullNameSeed.slice(0, 24);
+    }
+
+    return `user${crypto.randomBytes(3).toString('hex')}`;
+}
+
+async function buildUniqueUsername(email, fullName) {
+    let seed = selectUsernameSeed(email, fullName);
+
+    for (let attempt = 0; attempt < 30; attempt++) {
+        let suffix = attempt === 0 ? '' : `${Math.floor(1000 + Math.random() * 9000)}`;
+        let candidate = `${seed}${suffix}`.slice(0, 30);
+        if (candidate.length < 3) {
+            candidate = `user${crypto.randomBytes(3).toString('hex')}`;
+        }
+
+        let existed = await userController.FindUserByUsername(candidate);
+        if (!existed) {
+            return candidate;
+        }
+    }
+
+    return `user${Date.now()}${Math.floor(100 + Math.random() * 900)}`;
+}
+
+function buildGoogleGeneratedPassword() {
+    return `${crypto.randomBytes(12).toString('hex')}Aa1!`;
 }
 
 async function resetPasswordWithToken(token, password, res) {
@@ -109,6 +155,121 @@ router.post('/login', async function (req, res, next) {
         res.status(400).send({ message: err.message });
     }
 })
+
+router.get('/google/config', function (req, res) {
+    res.send({
+        enabled: Boolean(googleOAuthConfig.clientId),
+        clientId: googleOAuthConfig.clientId || null
+    });
+})
+
+router.post('/google/login', async function (req, res) {
+    try {
+        if (!googleOAuthClient || !googleOAuthConfig.clientId) {
+            return res.status(503).send({ message: 'dang nhap google chua duoc cau hinh' });
+        }
+
+        let credential = String(req.body.credential || '').trim();
+        if (!credential) {
+            return res.status(400).send({ message: 'thieu google credential' });
+        }
+
+        let ticket = await googleOAuthClient.verifyIdToken({
+            idToken: credential,
+            audience: googleOAuthConfig.clientId
+        });
+        let payload = ticket.getPayload();
+
+        let googleId = String(payload?.sub || '').trim();
+        let email = String(payload?.email || '').trim().toLowerCase();
+        let fullName = String(payload?.name || '').trim();
+        let avatarUrl = String(payload?.picture || '').trim();
+
+        if (!googleId || !email) {
+            return res.status(400).send({ message: 'thong tin google khong hop le' });
+        }
+        if (payload?.email_verified === false) {
+            return res.status(400).send({ message: 'email google chua duoc xac minh' });
+        }
+
+        let user = await userController.FindUserByGoogleId(googleId);
+        if (!user) {
+            user = await userController.FindUserByEmail(email);
+        }
+
+        if (user && user.googleId && user.googleId !== googleId) {
+            return res.status(409).send({ message: 'tai khoan email da lien ket google khac' });
+        }
+
+        if (!user) {
+            let defaultUserRole = await roleModel.findOne({
+                isDeleted: false,
+                name: { $regex: /^user$/i }
+            });
+            if (!defaultUserRole) {
+                return res.status(500).send({ message: 'He thong chua cau hinh role User' });
+            }
+
+            let session = await mongoose.startSession();
+            session.startTransaction();
+            try {
+                let username = await buildUniqueUsername(email, fullName);
+                let generatedPassword = buildGoogleGeneratedPassword();
+                user = await userController.CreateAnUser(
+                    username,
+                    generatedPassword,
+                    email,
+                    defaultUserRole._id,
+                    session,
+                    fullName,
+                    avatarUrl,
+                    false,
+                    0
+                );
+                user.googleId = googleId;
+                await user.save({ session });
+
+                let newCart = new cartSchema({ user: user._id });
+                await newCart.save({ session });
+
+                await session.commitTransaction();
+            } catch (error) {
+                await session.abortTransaction();
+                throw error;
+            } finally {
+                await session.endSession();
+            }
+        } else {
+            if (user.lockTime > Date.now()) {
+                return res.status(403).send({ message: 'ban dang bi ban' });
+            }
+
+            let needSave = false;
+            if (!user.googleId) {
+                user.googleId = googleId;
+                needSave = true;
+            }
+            if (fullName && !user.fullName) {
+                user.fullName = fullName;
+                needSave = true;
+            }
+            if (avatarUrl && !user.avatarUrl) {
+                user.avatarUrl = avatarUrl;
+                needSave = true;
+            }
+            if (needSave) {
+                await user.save();
+            }
+        }
+
+        let token = jwt.sign({ id: user._id }, jwtSecret, { expiresIn: '1d' });
+        res.cookie('LOGIN_NNPTUD_S3', token, buildAuthCookieOptions(ONE_DAY_MS));
+        return res.send(token);
+    } catch (err) {
+        return res.status(400).send({ message: err.message || 'dang nhap google that bai' });
+    }
+})
+
 router.get('/me', CheckLogin, function (req, res, next) {
     let user = req.user;
     res.send(user)
