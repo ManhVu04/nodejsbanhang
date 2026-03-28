@@ -3,7 +3,7 @@ import { useEffect, Suspense, lazy } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Spin } from 'antd';
 import { fetchMe } from './store/slices/authSlice';
-import { fetchCart, loadGuestCartFromStorage } from './store/slices/cartSlice';
+import { fetchCart, clearCart } from './store/slices/cartSlice';
 
 import AppLayout from './components/AppLayout';
 import AdminLayout from './components/AdminLayout';
@@ -41,7 +41,7 @@ function AppInit() {
             dispatch(fetchMe());
             dispatch(fetchCart());
         } else {
-            dispatch(loadGuestCartFromStorage());
+            dispatch(clearCart());
         }
     }, [dispatch, token]);
 

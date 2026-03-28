@@ -2,6 +2,7 @@ const express = require('express')
 let router = express.Router()
 let slugify = require('slugify')
 let categorySchema = require('../schemas/categories');
+let productSchema = require('../schemas/products');
 let { CheckLogin, CheckRole } = require('../utils/authHandler')
 
 const adminGuard = [CheckLogin, CheckRole(['Admin'])];
@@ -102,6 +103,18 @@ router.delete('/:id', adminGuard, async function (req, res, next) {
                 { message: "ID NOT FOUND" }
             )
         } else {
+            await productSchema.updateMany(
+                {
+                    isDeleted: false,
+                    category: getItem._id
+                },
+                {
+                    $unset: {
+                        category: 1
+                    }
+                }
+            );
+
             getItem.isDeleted = true
             await getItem.save();
             res.send(getItem)

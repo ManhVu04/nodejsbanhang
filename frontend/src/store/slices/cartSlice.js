@@ -47,8 +47,7 @@ export const syncGuestCart = createAsyncThunk('cart/syncGuest', async (_, { reje
 export const addToCart = createAsyncThunk('cart/add', async ({ productId }, { getState, rejectWithValue }) => {
     const { auth } = getState();
     if (!auth.token) {
-        // Guest — save to localStorage
-        return { type: 'guest', productId };
+        return rejectWithValue('Vui long dang nhap de them vao gio hang');
     }
     try {
         const res = await api.post('/carts/add', { product: productId });

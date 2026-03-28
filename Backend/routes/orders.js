@@ -13,6 +13,25 @@ let { sendOrderConfirmationMail } = require('../utils/mailHandler');
 let crypto = require('crypto');
 let { normalizeVoucherCode, validateVoucherForOrder } = require('../utils/voucherHandler');
 
+const ORDER_STATUS_TRANSITIONS = {
+    Pending: ['Paid', 'Shipped', 'Cancelled'],
+    Paid: ['Shipped', 'Cancelled'],
+    Shipped: ['Delivered'],
+    Delivered: [],
+    Cancelled: []
+};
+
+function getAllowedNextStatuses(order) {
+    let next = ORDER_STATUS_TRANSITIONS[order.status] || [];
+
+    // For online payment orders, shipping is only allowed after payment is confirmed.
+    if (order.paymentMethod === 'VNPay' && order.status === 'Pending') {
+        next = next.filter((value) => value !== 'Shipped');
+    }
+
+    return next;
+}
+
 // POST / — Place order (transaction-based concurrency control)
 router.post('/', CheckLogin, async function (req, res) {
     let session = await mongoose.startSession();
@@ -270,12 +289,32 @@ router.put('/:id/status', CheckLogin, CheckRole(['Admin']), async function (req,
             return res.status(404).send({ message: 'Đơn hàng không tồn tại' });
         }
 
-        if (existingOrder.status === 'Cancelled' && status !== 'Cancelled') {
-            return res.status(400).send({ message: 'Đơn đã hủy không thể chuyển trạng thái khác' });
-        }
-
         if (existingOrder.status === status) {
             return res.send({ message: 'Trạng thái đơn hàng không thay đổi', order: existingOrder });
+        }
+
+        let allowedNextStatuses = getAllowedNextStatuses(existingOrder);
+        if (!allowedNextStatuses.includes(status)) {
+            if (existingOrder.status === 'Cancelled') {
+                return res.status(400).send({ message: 'Đơn đã hủy không thể chuyển trạng thái khác' });
+            }
+            if (existingOrder.status === 'Delivered') {
+                return res.status(400).send({ message: 'Đơn đã giao là trạng thái kết thúc, không thể đổi tiếp' });
+            }
+            return res.status(400).send({
+                message: `Không thể chuyển từ ${existingOrder.status} sang ${status}`,
+                allowedNextStatuses
+            });
+        }
+
+        let payment = await paymentModel.findOne({ order: existingOrder._id });
+
+        if (status === 'Paid' && existingOrder.paymentMethod === 'VNPay') {
+            if (!payment || payment.status !== 'paid') {
+                return res.status(400).send({
+                    message: 'VNPay chưa xác nhận thanh toán thành công, không thể chuyển trạng thái Paid thủ công'
+                });
+            }
         }
 
         // If cancelled, restore stock
@@ -283,6 +322,8 @@ router.put('/:id/status', CheckLogin, CheckRole(['Admin']), async function (req,
             let session = await mongoose.startSession();
             session.startTransaction();
             try {
+                let paymentInTx = await paymentModel.findOne({ order: existingOrder._id }).session(session);
+
                 for (let item of existingOrder.items) {
                     await inventoryModel.findOneAndUpdate(
                         { product: item.product._id || item.product },
@@ -308,6 +349,16 @@ router.put('/:id/status', CheckLogin, CheckRole(['Admin']), async function (req,
                         { $inc: { usedCount: -1 } },
                         { session }
                     );
+                }
+
+                if (paymentInTx && paymentInTx.status === 'paid') {
+                    paymentInTx.status = 'refunded';
+                    paymentInTx.providerResponse = {
+                        ...(paymentInTx.providerResponse || {}),
+                        autoRefundOnCancel: true,
+                        refundAt: new Date().toISOString()
+                    };
+                    await paymentInTx.save({ session });
                 }
 
                 await orderModel.findByIdAndUpdate(
@@ -337,8 +388,20 @@ router.put('/:id/status', CheckLogin, CheckRole(['Admin']), async function (req,
 
         // If marked as Paid, update payment
         if (status === 'Paid') {
+            let paidUpdate = { status: 'paid' };
+            if (!payment || !payment.paidAt) {
+                paidUpdate.paidAt = new Date();
+            }
+
             await paymentModel.findOneAndUpdate(
                 { order: order._id },
+                paidUpdate
+            );
+        }
+
+        if (status === 'Delivered' && existingOrder.paymentMethod === 'COD') {
+            await paymentModel.findOneAndUpdate(
+                { order: order._id, method: 'COD' },
                 { status: 'paid', paidAt: new Date() }
             );
         }

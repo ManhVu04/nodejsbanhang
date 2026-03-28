@@ -114,12 +114,18 @@ router.get('/vnpay-return', async function (req, res) {
             // Payment success
             let payment = await paymentModel.findOne({ transactionId: txnRef });
             if (payment) {
-                payment.status = 'paid';
-                payment.paidAt = new Date();
+                if (payment.status !== 'refunded') {
+                    payment.status = 'paid';
+                    payment.paidAt = payment.paidAt || new Date();
+                }
                 payment.providerResponse = vnpParams;
                 await payment.save();
 
-                await orderModel.findByIdAndUpdate(payment.order, { status: 'Paid' });
+                let order = await orderModel.findById(payment.order);
+                if (order && order.status === 'Pending') {
+                    order.status = 'Paid';
+                    await order.save();
+                }
             }
             res.send({ code: '00', message: 'Thanh toán thành công' });
         } else {
@@ -157,16 +163,22 @@ router.get('/vnpay-ipn', async function (req, res) {
                 return res.status(200).json({ RspCode: '01', Message: 'Order not found' });
             }
 
-            if (payment.status === 'paid') {
+            if (payment.status === 'paid' || payment.status === 'refunded') {
                 return res.status(200).json({ RspCode: '02', Message: 'Already processed' });
             }
 
             if (responseCode === '00') {
                 payment.status = 'paid';
-                payment.paidAt = new Date();
+                payment.paidAt = payment.paidAt || new Date();
                 payment.providerResponse = vnpParams;
                 await payment.save();
-                await orderModel.findByIdAndUpdate(payment.order, { status: 'Paid' });
+
+                let order = await orderModel.findById(payment.order);
+                if (order && order.status === 'Pending') {
+                    order.status = 'Paid';
+                    await order.save();
+                }
+
                 return res.status(200).json({ RspCode: '00', Message: 'Success' });
             } else {
                 payment.status = 'failed';

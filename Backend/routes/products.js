@@ -38,7 +38,11 @@ router.get('/search', async (req, res) => {
         }
 
         let products = await query
-            .populate({ path: 'category', select: 'name' })
+            .populate({
+                path: 'category',
+                select: 'name',
+                match: { isDeleted: false }
+            })
             .sort(sortOption)
             .skip((page - 1) * limit)
             .limit(parseInt(limit));
@@ -64,9 +68,11 @@ router.get('/', async (req, res) => {
         price: {
             $gte: minQ
         }
-    }).populate(
-        { path: 'category', select: 'name' }
-    )
+    }).populate({
+        path: 'category',
+        select: 'name',
+        match: { isDeleted: false }
+    })
     res.send(result)
 })
 router.get('/:id/related', async (req, res) => {
@@ -90,7 +96,11 @@ router.get('/:id/related', async (req, res) => {
             _id: { $ne: currentProduct._id },
             category: currentProduct.category
         })
-            .populate({ path: 'category', select: 'name' })
+            .populate({
+                path: 'category',
+                select: 'name',
+                match: { isDeleted: false }
+            })
             .sort({ createdAt: -1 })
             .limit(limit);
 
@@ -101,7 +111,11 @@ router.get('/:id/related', async (req, res) => {
                     $nin: [currentProduct._id, ...related.map((item) => item._id)]
                 }
             })
-                .populate({ path: 'category', select: 'name' })
+                .populate({
+                    path: 'category',
+                    select: 'name',
+                    match: { isDeleted: false }
+                })
                 .sort({ createdAt: -1 })
                 .limit(limit - related.length);
             related = related.concat(fill);
@@ -117,7 +131,11 @@ router.get('/:id', async (req, res) => {//req.params
         let result = await productSchema.findOne({
             isDeleted: false,
             _id: req.params.id
-        }).populate({ path: 'category', select: 'name' })
+        }).populate({
+            path: 'category',
+            select: 'name',
+            match: { isDeleted: false }
+        })
         if (result) {
             res.send(result)
         } else {
