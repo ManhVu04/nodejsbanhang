@@ -11,40 +11,52 @@ export default function InventoryManagePage() {
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
+    const [inventoryPage, setInventoryPage] = useState(1);
+    const [inventoryPageSize, setInventoryPageSize] = useState(10);
+    const [inventoryTotal, setInventoryTotal] = useState(0);
     const [form] = Form.useForm();
 
-    const fetchInventories = useCallback(() => {
-        setLoading(true);
-        api.get('/inventories').then(res => setInventories(res.data.inventories || []))
-            .finally(() => setLoading(false));
+    const fetchInventories = useCallback(async (page = 1, limit = 10) => {
+        try {
+            setLoading(true);
+            const res = await api.get('/inventories', {
+                params: {
+                    page,
+                    limit
+                }
+            });
+            const payload = res?.data || {};
+            const nextInventories = Array.isArray(payload?.inventories) ? payload?.inventories : [];
+            const nextTotal = Number(payload?.total || 0);
+            const nextPage = Number(payload?.page || page);
+            const nextLimit = Number(payload?.limit || limit);
+
+            setInventories(nextInventories);
+            setInventoryTotal(Number.isFinite(nextTotal) ? nextTotal : 0);
+            setInventoryPage(Number.isFinite(nextPage) ? nextPage : 1);
+            setInventoryPageSize(Number.isFinite(nextLimit) ? nextLimit : limit);
+        } catch (err) {
+            message.error(err?.response?.data?.message || err?.response?.data || 'Không thể tải dữ liệu kho hàng');
+            setInventories([]);
+            setInventoryTotal(0);
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
-    const fetchLogs = useCallback(() => {
-        api.get('/inventories/logs?limit=50').then(res => setLogs(res.data.logs || [])).catch(() => {});
+    const fetchLogs = useCallback(async () => {
+        try {
+            const res = await api.get('/inventories/logs?limit=50');
+            setLogs(res?.data?.logs || []);
+        } catch {
+            setLogs([]);
+        }
     }, []);
 
     useEffect(() => {
-        let cancelled = false;
-
-        Promise.all([
-            api.get('/inventories'),
-            api.get('/inventories/logs?limit=50').catch(() => ({ data: { logs: [] } }))
-        ]).then(([inventoriesRes, logsRes]) => {
-            if (cancelled) {
-                return;
-            }
-            setInventories(inventoriesRes.data.inventories || []);
-            setLogs(logsRes.data.logs || []);
-        }).finally(() => {
-            if (!cancelled) {
-                setLoading(false);
-            }
-        });
-
-        return () => {
-            cancelled = true;
-        };
-    }, []);
+        fetchInventories(1, inventoryPageSize);
+        fetchLogs();
+    }, [fetchInventories, fetchLogs, inventoryPageSize]);
 
     const openAddStock = (product) => {
         setSelectedProduct(product);
@@ -58,17 +70,23 @@ export default function InventoryManagePage() {
             await api.post(`/inventories/${selectedProduct._id}/stock`, values);
             message.success('Nhập kho thành công');
             setModalOpen(false);
-            fetchInventories();
-            fetchLogs();
+            await fetchInventories(inventoryPage, inventoryPageSize);
+            await fetchLogs();
         } catch (err) {
-            if (err.response) message.error(err.response.data?.message || 'Lỗi');
+            if (err?.response) message.error(err?.response?.data?.message || 'Lỗi');
         }
+    };
+
+    const handleInventoryTableChange = (pagination) => {
+        const nextPage = Number(pagination?.current || 1);
+        const nextPageSize = Number(pagination?.pageSize || inventoryPageSize);
+        fetchInventories(nextPage, nextPageSize);
     };
 
     const invColumns = [
         {
             title: 'Ảnh', width: 60,
-            render: (_, r) => <img src={resolveImageUrl(r.product?.images?.[0])} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
+            render: (_, r) => <img alt={r?.product?.title || 'product'} src={resolveImageUrl(r?.product?.images?.[0])} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
         },
         { title: 'Sản phẩm', render: (_, r) => r.product?.title || 'N/A' },
         { title: 'SKU', render: (_, r) => r.product?.sku || 'N/A', width: 100 },
@@ -106,7 +124,22 @@ export default function InventoryManagePage() {
                     key: 'inventory', label: '📦 Tồn kho',
                     children: (
                         <Card style={{ borderRadius: 12 }}>
-                            <Table dataSource={inventories} columns={invColumns} loading={loading} rowKey="_id" size="small" />
+                            <Table
+                                dataSource={inventories}
+                                columns={invColumns}
+                                loading={loading}
+                                rowKey="_id"
+                                size="small"
+                                onChange={handleInventoryTableChange}
+                                pagination={{
+                                    current: inventoryPage,
+                                    pageSize: inventoryPageSize,
+                                    total: inventoryTotal,
+                                    showSizeChanger: true,
+                                    pageSizeOptions: ['10', '20', '50'],
+                                    showTotal: (total) => `${total} sản phẩm`
+                                }}
+                            />
                         </Card>
                     )
                 },

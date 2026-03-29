@@ -9,20 +9,48 @@ let productModel = require('../schemas/products');
 router.get('/', CheckLogin, CheckRole(['Admin']), async function (req, res) {
     try {
         let { page = 1, limit = 20, search } = req.query;
-        let inventories = await inventoryModel.find()
+        let normalizedPage = Math.max(1, Number.parseInt(page, 10) || 1);
+        let normalizedLimit = Math.max(1, Number.parseInt(limit, 10) || 20);
+        let normalizedSearch = String(search || '').trim();
+
+        let productMatch = { isDeleted: false };
+        if (normalizedSearch) {
+            let escapedSearch = normalizedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            productMatch.title = new RegExp(escapedSearch, 'i');
+        }
+
+        let matchedProducts = await productModel.find(productMatch).select('_id');
+        let productIds = matchedProducts.map((item) => item._id);
+
+        if (productIds.length === 0) {
+            return res.send({
+                inventories: [],
+                total: 0,
+                page: normalizedPage,
+                totalPages: 0,
+                limit: normalizedLimit
+            });
+        }
+
+        let inventoryFilter = { product: { $in: productIds } };
+        let total = await inventoryModel.countDocuments(inventoryFilter);
+
+        let inventories = await inventoryModel.find(inventoryFilter)
             .populate({
                 path: 'product',
-                match: search ? { title: new RegExp(search, 'i'), isDeleted: false } : { isDeleted: false },
                 select: 'title sku price images'
             })
-            .skip((page - 1) * limit)
-            .limit(parseInt(limit));
+            .sort({ _id: -1 })
+            .skip((normalizedPage - 1) * normalizedLimit)
+            .limit(normalizedLimit);
 
-        // Filter out null products (from the populate match)
-        inventories = inventories.filter(inv => inv.product !== null);
-
-        let total = inventories.length;
-        res.send({ inventories, total, page: parseInt(page) });
+        res.send({
+            inventories,
+            total,
+            page: normalizedPage,
+            totalPages: Math.ceil(total / normalizedLimit),
+            limit: normalizedLimit
+        });
     } catch (err) {
         res.status(400).send({ message: err.message });
     }
