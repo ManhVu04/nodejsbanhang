@@ -76,7 +76,15 @@ router.get('/:id', async (req, res) => {//req.params
             _id: req.params.id
         })
         if (result) {
-            res.send(result)
+            let inventory = await inventorySchema.findOne({ product: result._id })
+            let payload = result.toObject()
+            let availableStock = Math.max(
+                0,
+                Number(inventory?.stock || 0) - Number(inventory?.reserved || 0)
+            )
+            payload.availableStock = availableStock
+            payload.stock = Number(inventory?.stock || 0)
+            res.send(payload)
         } else {
             res.status(404).send({
                 message: "ID NOT FOUND"
