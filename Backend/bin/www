@@ -4,8 +4,25 @@
  * Module dependencies.
  */
 
+const fs = require('fs');
+const path = require('path');
+
+if (process.env.NODE_ENV !== 'production') {
+  const dotenv = require('dotenv');
+  const envFiles = [
+    path.resolve(__dirname, '../.env'),
+    path.resolve(__dirname, '../.env.local')
+  ];
+
+  for (const envFile of envFiles) {
+    if (fs.existsSync(envFile)) {
+      dotenv.config({ path: envFile, override: true, quiet: true });
+    }
+  }
+}
+
 var app = require('../app');
-var debug = require('debug')('nnptud-s3:server');
+var debug = require('debug')('nodejs:server');
 var http = require('http');
 
 /**

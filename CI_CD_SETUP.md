@@ -53,7 +53,7 @@ The SERVER_ENV_FILE must now include all application env vars used by backend au
 Example SERVER_ENV_FILE value:
 
 DOCKERHUB_USERNAME=your-dockerhub-username
-MONGODB_URI=mongodb://your-mongo-host:27017/NNPTUD-S3
+MONGODB_URI=mongodb://your-mongo-host:27017/nodejs
 CORS_ORIGIN=https://your-domain.com
 FRONTEND_URL=https://your-domain.com/shop
 JWT_SECRET=replace-with-a-strong-random-secret

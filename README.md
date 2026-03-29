@@ -177,7 +177,7 @@ Tham khao mau day du trong .env.production.example.
 Luu y:
 
 - Backend doc bien moi truong truc tiep tu process.env.
-- Khi chay local, can set env trong shell, hoac chay qua Docker Compose.
+- Khi chay local, backend tu dong nap Backend/.env va Backend/.env.local (neu co).
 
 ## Huong Dan Chay Local
 
@@ -203,13 +203,26 @@ Trong moi truong dev, app co fallback ket noi den cac URI local sau:
 - mongodb://127.0.0.1:27018/nodejs?directConnection=true
 - mongodb://localhost:27017/nodejs
 
-Neu muon bat Google Login local, them it nhat bien:
+De cau hinh local ma khong anh huong production, tao file Backend/.env.local tu mau Backend/.env.local.example:
 
 ```bash
-GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+cd Backend
+copy .env.local.example .env.local
+```
+
+Vi du gia tri can cho Google Login local:
+
+```env
+MONGODB_URI=mongodb://127.0.0.1:27017/nodejs?directConnection=true
 CORS_ORIGIN=http://localhost:5173
 FRONTEND_URL=http://localhost:5173/shop
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 ```
+
+Ghi chu:
+
+- File Backend/.env.local da duoc ignore trong git, khong bi push len repository.
+- Production van dung bien tu SERVER_ENV_FILE va docker-compose, khong dung file local nay.
 
 ### 3) Chay Frontend
 

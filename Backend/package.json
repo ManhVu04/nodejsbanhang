@@ -1,5 +1,5 @@
 {
-  "name": "nnptud-s3",
+  "name": "nodejs",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -11,6 +11,7 @@
     "cookie-parser": "~1.4.4",
     "cors": "^2.8.6",
     "debug": "~2.6.9",
+    "dotenv": "^17.3.1",
     "ejs": "~2.6.1",
     "exceljs": "^4.4.0",
     "express": "~4.16.1",
