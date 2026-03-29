@@ -6,6 +6,7 @@ var logger = require('morgan');
 let mongoose = require('mongoose');
 let cors = require('cors');
 let helmet = require('helmet');
+let { startReservationExpiryJob } = require('./utils/reservationExpiryJob');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -57,6 +58,7 @@ app.use('/api/v1/vouchers', require('./routes/vouchers'));
 app.use('/api/v1/wishlists', require('./routes/wishlists'));
 app.use('/api/v1/reviews', require('./routes/reviews'));
 app.use('/api/v1/returns', require('./routes/returns'));
+app.use('/api/v1/reservations', require('./routes/reservations'));
 
 const isProduction = process.env.NODE_ENV === 'production';
 const configuredMongoUri = (process.env.MONGODB_URI || '').trim();
@@ -101,6 +103,8 @@ connectMongo().catch((err) => {
         process.exit(1);
     }
 });
+
+startReservationExpiryJob();
 
 mongoose.connection.on('connected', function () {
     console.log("connected");
