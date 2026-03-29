@@ -60,7 +60,7 @@ async function syncProductRating(productId) {
 
 router.get('/product/:productId', async function (req, res) {
     try {
-        let { page = 1, limit = 10 } = req.query;
+        let { page = 1, limit = 10, rating } = req.query;
         let productId = req.params.productId;
 
         let product = await productModel.findOne({ _id: productId, isDeleted: false });
@@ -69,6 +69,14 @@ router.get('/product/:productId', async function (req, res) {
         }
 
         let filter = { product: productId, isDeleted: false };
+        let normalizedRating = Number(rating);
+        if (rating !== undefined && rating !== null && String(rating).trim() !== '') {
+            if (!Number.isInteger(normalizedRating) || normalizedRating < 1 || normalizedRating > 5) {
+                return res.status(400).send({ message: 'Bo loc sao khong hop le' });
+            }
+            filter.rating = normalizedRating;
+        }
+
         let reviews = await reviewModel.find(filter)
             .populate('user', 'username fullName avatarUrl')
             .sort({ updatedAt: -1 })
@@ -85,6 +93,26 @@ router.get('/product/:productId', async function (req, res) {
             totalPages: Math.ceil(total / Number(limit)),
             stats
         });
+    } catch (error) {
+        return res.status(400).send({ message: error.message });
+    }
+});
+
+router.get('/product/:productId/me', CheckLogin, async function (req, res) {
+    try {
+        let productId = req.params.productId;
+        let product = await productModel.findOne({ _id: productId, isDeleted: false });
+        if (!product) {
+            return res.status(404).send({ message: 'San pham khong ton tai' });
+        }
+
+        let review = await reviewModel.findOne({
+            product: productId,
+            user: req.user._id,
+            isDeleted: false
+        }).populate('user', 'username fullName avatarUrl');
+
+        return res.send({ review: review || null });
     } catch (error) {
         return res.status(400).send({ message: error.message });
     }
