@@ -4,7 +4,7 @@ import { Row, Col, Typography, Button, Tag, Divider, Spin, message, Image, Card,
 import { ShoppingCartOutlined, HomeOutlined } from '@ant-design/icons';
 import { useDispatch } from 'react-redux';
 import { addToCart } from '../store/slices/cartSlice';
-import api from '../utils/api';
+import api, { resolveImageUrl } from '../utils/api';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -129,7 +129,7 @@ export default function ProductDetailPage() {
     if (loading) return <div className="page-container" style={{ textAlign: 'center', paddingBlock: 80 }}><Spin size="large" /></div>;
     if (!product) return null;
 
-    const imageUrl = product.images?.[0] || 'https://i.imgur.com/cHddUCu.jpeg';
+    const imageUrl = resolveImageUrl(product?.images?.[0]);
 
     return (
         <section className="product-detail" aria-label="Chi tiết sản phẩm">
