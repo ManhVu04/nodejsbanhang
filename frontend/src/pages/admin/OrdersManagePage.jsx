@@ -1,4 +1,4 @@
-import { Table, Tag, Select, message, Card, Typography, Space, Button } from 'antd';
+import { Table, Tag, Select, message, Card, Typography, Button } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
@@ -7,6 +7,24 @@ import api from '../../utils/api';
 const { Title } = Typography;
 const statusColors = { Pending: 'orange', Paid: 'blue', Shipped: 'cyan', Delivered: 'green', Cancelled: 'red' };
 const statusLabels = { Pending: 'Chờ xử lý', Paid: 'Đã thanh toán', Shipped: 'Đang giao', Delivered: 'Đã giao', Cancelled: 'Đã hủy' };
+const afterSaleColors = { None: 'default', Requested: 'orange', Approved: 'blue', Rejected: 'red', Refunded: 'green' };
+const orderStatusTransitions = {
+    Pending: ['Paid', 'Shipped', 'Cancelled'],
+    Paid: ['Shipped', 'Cancelled'],
+    Shipped: ['Delivered'],
+    Delivered: [],
+    Cancelled: []
+};
+
+function getAllowedStatusOptions(order) {
+    let nextStatuses = orderStatusTransitions[order.status] || [];
+
+    if (order.paymentMethod === 'VNPay' && order.status === 'Pending') {
+        nextStatuses = nextStatuses.filter((item) => item !== 'Shipped');
+    }
+
+    return [order.status, ...nextStatuses];
+}
 
 export default function OrdersManagePage() {
     const [orders, setOrders] = useState([]);
@@ -78,14 +96,22 @@ export default function OrdersManagePage() {
         { title: 'TT', dataIndex: 'paymentMethod', width: 70 },
         {
             title: 'Trạng thái', dataIndex: 'status', width: 160,
-            render: (status, record) => (
+            render: (status, record) => {
+                let allowedOptions = getAllowedStatusOptions(record);
+                return (
                 <Select value={status} size="small" style={{ width: 140 }}
+                    disabled={allowedOptions.length <= 1}
                     onChange={(v) => handleStatusChange(record._id, v)}>
-                    {Object.keys(statusLabels).map(s => (
+                    {allowedOptions.map(s => (
                         <Select.Option key={s} value={s}><Tag color={statusColors[s]}>{statusLabels[s]}</Tag></Select.Option>
                     ))}
                 </Select>
             )
+            }
+        },
+        {
+            title: 'Hau mai', dataIndex: 'afterSaleStatus', width: 110,
+            render: (status) => <Tag color={afterSaleColors[status || 'None']}>{status || 'None'}</Tag>
         },
         { title: 'Ngày', dataIndex: 'createdAt', width: 100, render: d => new Date(d).toLocaleDateString('vi-VN') },
         {

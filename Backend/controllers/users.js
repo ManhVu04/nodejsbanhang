@@ -32,6 +32,11 @@ module.exports = {
             isDeleted: false,
             email: email
         })
+    }, FindUserByGoogleId: async function (googleId) {
+        return await userModel.findOne({
+            isDeleted: false,
+            googleId: googleId
+        })
     },
     FindUserByToken: async function (token) {
         let result =  await userModel.findOne({

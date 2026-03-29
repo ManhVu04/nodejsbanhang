@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { addToCart, removeFromCart, decreaseFromCart, fetchCart } from '../store/slices/cartSlice';
 import { useEffect } from 'react';
+import { resolveImageUrl } from '../utils/api';
 
 const { Title, Text } = Typography;
 
@@ -29,7 +30,7 @@ export default function CartPage() {
             title: 'Sản phẩm', dataIndex: 'product', key: 'product',
             render: (product) => (
                 <Space>
-                    <img src={product?.images?.[0] || 'https://i.imgur.com/cHddUCu.jpeg'}
+                    <img src={resolveImageUrl(product?.images?.[0])}
                         alt="" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8 }} />
                     <div>
                         <Link to={`/products/${product?._id}`} style={{ fontWeight: 600, color: '#1a1a2e' }}>

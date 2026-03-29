@@ -20,6 +20,13 @@ const userSchema = new mongoose.Schema(
       lowercase: true
     },
 
+    googleId: {
+      type: String,
+      default: null,
+      unique: true,
+      sparse: true
+    },
+
     fullName: {
       type: String,
       default: ""
@@ -27,7 +34,7 @@ const userSchema = new mongoose.Schema(
 
     avatarUrl: {
       type: String,
-      default: "https://i.sstatic.net/l60Hf.png"
+      default: ""
     },
 
     status: {
@@ -39,6 +46,13 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "role",
       required: true
+    },
+    wishlist: {
+      type: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'product'
+      }],
+      default: []
     },
 
     loginCount: {
@@ -67,9 +81,10 @@ userSchema.pre('save', function () {
   }
 })
 userSchema.pre('findOneAndUpdate', function () {
-  let salt = bcrypt.genSaltSync(10);
-  console.log(this);
-  this._update.password = bcrypt.hashSync(this._update.password, salt);
+  if (this._update && typeof this._update.password === 'string' && this._update.password.length > 0) {
+    let salt = bcrypt.genSaltSync(10);
+    this._update.password = bcrypt.hashSync(this._update.password, salt);
+  }
 })
 
 module.exports = mongoose.model("user", userSchema);

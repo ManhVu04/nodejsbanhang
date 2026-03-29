@@ -33,6 +33,10 @@ const vnpayConfig = {
     returnUrl: process.env.VNP_RETURN_URL || `${frontendUrl}/vnpay-return`
 };
 
+const googleOAuthConfig = {
+    clientId: (process.env.GOOGLE_CLIENT_ID || '').trim()
+};
+
 module.exports = {
     isProduction,
     jwtSecret,
@@ -40,5 +44,6 @@ module.exports = {
     cookieSecure,
     cookieSameSite,
     mailConfig,
-    vnpayConfig
+    vnpayConfig,
+    googleOAuthConfig
 };

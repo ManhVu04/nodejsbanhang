@@ -3,7 +3,7 @@ import { useEffect, Suspense, lazy } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Spin } from 'antd';
 import { fetchMe } from './store/slices/authSlice';
-import { fetchCart, loadGuestCartFromStorage } from './store/slices/cartSlice';
+import { fetchCart, clearCart } from './store/slices/cartSlice';
 
 import AppLayout from './components/AppLayout';
 import AdminLayout from './components/AdminLayout';
@@ -21,6 +21,7 @@ const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
 const OrdersPage = lazy(() => import('./pages/OrdersPage'));
 const OrderDetailPage = lazy(() => import('./pages/OrderDetailPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const WishlistPage = lazy(() => import('./pages/WishlistPage'));
 const VNPayReturnPage = lazy(() => import('./pages/VNPayReturnPage'));
 
 const DashboardPage = lazy(() => import('./pages/admin/DashboardPage'));
@@ -28,6 +29,8 @@ const ProductsManagePage = lazy(() => import('./pages/admin/ProductsManagePage')
 const CategoriesManagePage = lazy(() => import('./pages/admin/CategoriesManagePage'));
 const OrdersManagePage = lazy(() => import('./pages/admin/OrdersManagePage'));
 const InventoryManagePage = lazy(() => import('./pages/admin/InventoryManagePage'));
+const VouchersManagePage = lazy(() => import('./pages/admin/VouchersManagePage'));
+const ReturnsManagePage = lazy(() => import('./pages/admin/ReturnsManagePage'));
 
 function AppInit() {
     const dispatch = useDispatch();
@@ -38,7 +41,7 @@ function AppInit() {
             dispatch(fetchMe());
             dispatch(fetchCart());
         } else {
-            dispatch(loadGuestCartFromStorage());
+            dispatch(clearCart());
         }
     }, [dispatch, token]);
 
@@ -60,6 +63,7 @@ function App() {
                         <Route path="/products" element={<ProductsPage />} />
                         <Route path="/products/:id" element={<ProductDetailPage />} />
                         <Route path="/cart" element={<CartPage />} />
+                        <Route path="/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
                         <Route path="/vnpay-return" element={<VNPayReturnPage />} />
                         <Route path="/checkout" element={
                             <ProtectedRoute><CheckoutPage /></ProtectedRoute>
@@ -82,6 +86,8 @@ function App() {
                             <Route path="categories" element={<CategoriesManagePage />} />
                             <Route path="orders" element={<OrdersManagePage />} />
                             <Route path="inventory" element={<InventoryManagePage />} />
+                            <Route path="vouchers" element={<VouchersManagePage />} />
+                            <Route path="returns" element={<ReturnsManagePage />} />
                         </Route>
                     </Route>
                 </Routes>

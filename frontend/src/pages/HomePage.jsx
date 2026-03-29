@@ -2,7 +2,7 @@ import { Button, Row, Col, Card, Typography } from 'antd';
 import { ShoppingOutlined, ThunderboltOutlined, SafetyCertificateOutlined, RocketOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import api from '../utils/api';
+import api, { resolveImageUrl } from '../utils/api';
 import ProductCard from '../components/ProductCard';
 
 const { Title, Paragraph } = Typography;
@@ -73,7 +73,7 @@ export default function HomePage() {
                             <Col key={cat._id}>
                                 <Link to={`/products?category=${cat._id}`}>
                                     <Card hoverable className="surface-card" style={{ borderRadius: 12, textAlign: 'center', minWidth: 140 }} bodyStyle={{ padding: '16px 24px' }}>
-                                        <img src={cat.image} alt={cat.name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, marginBottom: 8 }} />
+                                        <img src={resolveImageUrl(cat.image)} alt={cat.name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, marginBottom: 8 }} />
                                         <div style={{ fontWeight: 600 }}>{cat.name}</div>
                                     </Card>
                                 </Link>

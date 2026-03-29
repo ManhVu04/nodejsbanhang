@@ -13,6 +13,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       COOKIE_SECURE: ${COOKIE_SECURE}
       COOKIE_SAME_SITE: ${COOKIE_SAME_SITE}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
       SMTP_SECURE: ${SMTP_SECURE}
@@ -26,6 +27,8 @@ services:
     # Đã xóa mongo khỏi depends_on vì dùng MongoDB cài trực tiếp trên Host
     expose:
       - "3000"
+    volumes:
+      - backend_uploads:/app/uploads
 
   frontend:
     image: ${DOCKERHUB_USERNAME}/minishop-frontend:${IMAGE_TAG:-latest}
@@ -35,3 +38,6 @@ services:
       - backend
     ports:
       - "8081:80" # Đổi thành 8081 để không bị lỗi "Address already in use" với Nginx cổng 80
+
+volumes:
+  backend_uploads:

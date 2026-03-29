@@ -1,5 +1,5 @@
 import { Form, Input, Button, Card, Typography, message, Divider } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, MailOutlined, IdcardOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { registerUser, clearError } from '../store/slices/authSlice';
@@ -39,6 +39,15 @@ export default function RegisterPage() {
                 {error && <div style={{ color: '#ff4d4f', marginBottom: 16, textAlign: 'center' }}>{error}</div>}
 
                 <Form layout="vertical" onFinish={onFinish} size="large">
+                    <Form.Item
+                        name="fullName"
+                        rules={[
+                            { required: true, message: 'Nhập họ tên' },
+                            { min: 2, message: 'Họ tên tối thiểu 2 ký tự' }
+                        ]}
+                    >
+                        <Input prefix={<IdcardOutlined />} placeholder="Họ và tên" />
+                    </Form.Item>
                     <Form.Item name="username" rules={[{ required: true, message: 'Nhập tên đăng nhập' }, { min: 3, message: 'Tối thiểu 3 ký tự' }]}>
                         <Input prefix={<UserOutlined />} placeholder="Tên đăng nhập" />
                     </Form.Item>

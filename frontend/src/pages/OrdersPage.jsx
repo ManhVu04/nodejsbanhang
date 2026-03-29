@@ -12,6 +12,12 @@ const statusColors = {
 const statusLabels = {
     Pending: 'Chờ xử lý', Paid: 'Đã thanh toán', Shipped: 'Đang giao', Delivered: 'Đã giao', Cancelled: 'Đã hủy'
 };
+const afterSaleColors = {
+    None: 'default', Requested: 'orange', Approved: 'blue', Rejected: 'red', Refunded: 'green'
+};
+const afterSaleLabels = {
+    None: 'Khong', Requested: 'Dang yeu cau', Approved: 'Da duyet', Rejected: 'Bi tu choi', Refunded: 'Da hoan tien'
+};
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState([]);
@@ -76,6 +82,10 @@ export default function OrdersPage() {
         {
             title: 'Trạng thái', dataIndex: 'status', key: 'status',
             render: s => <Tag color={statusColors[s]}>{statusLabels[s] || s}</Tag>
+        },
+        {
+            title: 'Hau mai', dataIndex: 'afterSaleStatus', key: 'afterSaleStatus',
+            render: (s) => <Tag color={afterSaleColors[s || 'None']}>{afterSaleLabels[s || 'None']}</Tag>
         },
         {
             title: '', key: 'action',

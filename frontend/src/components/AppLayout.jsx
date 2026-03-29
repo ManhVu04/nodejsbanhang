@@ -1,10 +1,11 @@
 import { Layout, Menu, Badge, Dropdown, Avatar, Input, Space, Drawer, Button } from 'antd';
-import { ShoppingCartOutlined, UserOutlined, LogoutOutlined, DashboardOutlined, AppstoreOutlined, LoginOutlined, UserAddOutlined, ShoppingOutlined, SearchOutlined, MenuOutlined } from '@ant-design/icons';
+import { ShoppingCartOutlined, UserOutlined, LogoutOutlined, DashboardOutlined, AppstoreOutlined, LoginOutlined, UserAddOutlined, ShoppingOutlined, SearchOutlined, MenuOutlined, HeartOutlined } from '@ant-design/icons';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logoutUser } from '../store/slices/authSlice';
 import { clearCart } from '../store/slices/cartSlice';
 import { useState } from 'react';
+import { resolveImageUrl } from '../utils/api';
 
 const { Header, Content, Footer } = Layout;
 const { Search } = Input;
@@ -18,8 +19,8 @@ export default function AppLayout() {
 
     const cartCount = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
     const isAdmin = user?.role?.name === 'Admin';
-    const avatarSrc = (typeof user?.avatarUrl === 'string' && user.avatarUrl.trim().startsWith('http'))
-        ? user.avatarUrl
+    const avatarSrc = (typeof user?.avatarUrl === 'string' && user.avatarUrl.trim().length > 0)
+        ? resolveImageUrl(user.avatarUrl)
         : undefined;
     const avatarText = (user?.fullName || user?.username || 'U').trim().charAt(0).toUpperCase();
 
@@ -39,7 +40,10 @@ export default function AppLayout() {
     const navItems = [
         { key: 'products', icon: <AppstoreOutlined />, label: <Link to="/products">Sản phẩm</Link> },
         { key: 'cart', icon: <ShoppingCartOutlined />, label: <Link to="/cart">Giỏ hàng</Link> },
-        ...(user ? [{ key: 'orders', icon: <ShoppingOutlined />, label: <Link to="/orders">Đơn hàng</Link> }] : []),
+        ...(user ? [
+            { key: 'orders', icon: <ShoppingOutlined />, label: <Link to="/orders">Đơn hàng</Link> },
+            { key: 'wishlist', icon: <HeartOutlined />, label: <Link to="/wishlist">Yêu thích</Link> }
+        ] : []),
         ...(isAdmin ? [{ key: 'admin', icon: <DashboardOutlined />, label: <Link to="/admin">Quản trị</Link> }] : []),
         ...(!user ? [
             { key: 'login', icon: <LoginOutlined />, label: <Link to="/login">Đăng nhập</Link> },
@@ -50,6 +54,7 @@ export default function AppLayout() {
     const userMenuItems = user ? [
         { key: 'profile', icon: <UserOutlined />, label: <Link to="/profile">Tài khoản</Link> },
         { key: 'orders', icon: <ShoppingOutlined />, label: <Link to="/orders">Đơn hàng</Link> },
+        { key: 'wishlist', icon: <HeartOutlined />, label: <Link to="/wishlist">Yêu thích</Link> },
         ...(isAdmin ? [{ key: 'admin', icon: <DashboardOutlined />, label: <Link to="/admin">Admin Dashboard</Link> }] : []),
         { type: 'divider' },
         { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', onClick: handleLogout, danger: true }

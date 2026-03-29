@@ -8,8 +8,29 @@ let inventoryModel = require('../schemas/inventories');
 let inventoryLogModel = require('../schemas/inventoryLogs');
 let paymentModel = require('../schemas/payments');
 let productModel = require('../schemas/products');
+let voucherModel = require('../schemas/vouchers');
 let { sendOrderConfirmationMail } = require('../utils/mailHandler');
 let crypto = require('crypto');
+let { normalizeVoucherCode, validateVoucherForOrder } = require('../utils/voucherHandler');
+
+const ORDER_STATUS_TRANSITIONS = {
+    Pending: ['Paid', 'Shipped', 'Cancelled'],
+    Paid: ['Shipped', 'Cancelled'],
+    Shipped: ['Delivered'],
+    Delivered: [],
+    Cancelled: []
+};
+
+function getAllowedNextStatuses(order) {
+    let next = ORDER_STATUS_TRANSITIONS[order.status] || [];
+
+    // For online payment orders, shipping is only allowed after payment is confirmed.
+    if (order.paymentMethod === 'VNPay' && order.status === 'Pending') {
+        next = next.filter((value) => value !== 'Shipped');
+    }
+
+    return next;
+}
 
 // POST / — Place order (transaction-based concurrency control)
 router.post('/', CheckLogin, async function (req, res) {
@@ -17,7 +38,8 @@ router.post('/', CheckLogin, async function (req, res) {
     session.startTransaction();
     try {
         let user = req.user;
-        let { paymentMethod, shippingAddress, note } = req.body;
+        let { paymentMethod, shippingAddress, note, voucherCode } = req.body;
+        let normalizedVoucherCode = normalizeVoucherCode(voucherCode);
 
         if (!paymentMethod || !['COD', 'VNPay'].includes(paymentMethod)) {
             throw new Error('Phương thức thanh toán không hợp lệ');
@@ -30,7 +52,7 @@ router.post('/', CheckLogin, async function (req, res) {
         }
 
         let orderItems = [];
-        let totalPrice = 0;
+        let subTotalPrice = 0;
 
         // For each cart item: atomically deduct stock to prevent over-selling
         for (let cartItem of cart.products) {
@@ -64,7 +86,7 @@ router.post('/', CheckLogin, async function (req, res) {
                 priceAtPurchase: product.price,
                 subtotal: subtotal
             });
-            totalPrice += subtotal;
+            subTotalPrice += subtotal;
 
             // Log inventory out
             await new inventoryLogModel({
@@ -76,15 +98,55 @@ router.post('/', CheckLogin, async function (req, res) {
             }).save({ session });
         }
 
+        let discountAmount = 0;
+        let appliedVoucher = null;
+
+        if (normalizedVoucherCode) {
+            let voucher = await voucherModel.findOne({
+                code: normalizedVoucherCode,
+                isDeleted: false
+            }).session(session);
+
+            let validation = validateVoucherForOrder(voucher, subTotalPrice);
+            if (!validation.valid) {
+                throw new Error(validation.message);
+            }
+
+            if (voucher.perUserLimit) {
+                let usedByUser = await orderModel.countDocuments({
+                    user: user._id,
+                    'voucher.code': voucher.code,
+                    status: { $ne: 'Cancelled' }
+                }).session(session);
+
+                if (usedByUser >= voucher.perUserLimit) {
+                    throw new Error('Ban da dung het luot cho ma voucher nay');
+                }
+            }
+
+            discountAmount = validation.discount;
+            appliedVoucher = voucher;
+        }
+
+        let totalPrice = Math.max(0, subTotalPrice - discountAmount);
+
         // Create order
         let newOrder = new orderModel({
             user: user._id,
             items: orderItems,
+            subTotalPrice: subTotalPrice,
+            discountAmount: discountAmount,
             totalPrice: totalPrice,
             status: paymentMethod === 'COD' ? 'Pending' : 'Pending',
             paymentMethod: paymentMethod,
             shippingAddress: shippingAddress || '',
-            note: note || ''
+            note: note || '',
+            voucher: appliedVoucher
+                ? {
+                    voucherId: appliedVoucher._id,
+                    code: appliedVoucher.code
+                }
+                : { code: '' }
         });
         await newOrder.save({ session });
 
@@ -99,6 +161,11 @@ router.post('/', CheckLogin, async function (req, res) {
             idempotencyKey: idempotencyKey
         });
         await newPayment.save({ session });
+
+        if (appliedVoucher) {
+            appliedVoucher.usedCount += 1;
+            await appliedVoucher.save({ session });
+        }
 
         // Clear user's cart
         cart.products = [];
@@ -222,12 +289,32 @@ router.put('/:id/status', CheckLogin, CheckRole(['Admin']), async function (req,
             return res.status(404).send({ message: 'Đơn hàng không tồn tại' });
         }
 
-        if (existingOrder.status === 'Cancelled' && status !== 'Cancelled') {
-            return res.status(400).send({ message: 'Đơn đã hủy không thể chuyển trạng thái khác' });
-        }
-
         if (existingOrder.status === status) {
             return res.send({ message: 'Trạng thái đơn hàng không thay đổi', order: existingOrder });
+        }
+
+        let allowedNextStatuses = getAllowedNextStatuses(existingOrder);
+        if (!allowedNextStatuses.includes(status)) {
+            if (existingOrder.status === 'Cancelled') {
+                return res.status(400).send({ message: 'Đơn đã hủy không thể chuyển trạng thái khác' });
+            }
+            if (existingOrder.status === 'Delivered') {
+                return res.status(400).send({ message: 'Đơn đã giao là trạng thái kết thúc, không thể đổi tiếp' });
+            }
+            return res.status(400).send({
+                message: `Không thể chuyển từ ${existingOrder.status} sang ${status}`,
+                allowedNextStatuses
+            });
+        }
+
+        let payment = await paymentModel.findOne({ order: existingOrder._id });
+
+        if (status === 'Paid' && existingOrder.paymentMethod === 'VNPay') {
+            if (!payment || payment.status !== 'paid') {
+                return res.status(400).send({
+                    message: 'VNPay chưa xác nhận thanh toán thành công, không thể chuyển trạng thái Paid thủ công'
+                });
+            }
         }
 
         // If cancelled, restore stock
@@ -235,6 +322,8 @@ router.put('/:id/status', CheckLogin, CheckRole(['Admin']), async function (req,
             let session = await mongoose.startSession();
             session.startTransaction();
             try {
+                let paymentInTx = await paymentModel.findOne({ order: existingOrder._id }).session(session);
+
                 for (let item of existingOrder.items) {
                     await inventoryModel.findOneAndUpdate(
                         { product: item.product._id || item.product },
@@ -249,6 +338,27 @@ router.put('/:id/status', CheckLogin, CheckRole(['Admin']), async function (req,
                         order: existingOrder._id,
                         performedBy: req.user._id
                     }).save({ session });
+                }
+
+                if (existingOrder.voucher && existingOrder.voucher.voucherId) {
+                    await voucherModel.findOneAndUpdate(
+                        {
+                            _id: existingOrder.voucher.voucherId,
+                            usedCount: { $gt: 0 }
+                        },
+                        { $inc: { usedCount: -1 } },
+                        { session }
+                    );
+                }
+
+                if (paymentInTx && paymentInTx.status === 'paid') {
+                    paymentInTx.status = 'refunded';
+                    paymentInTx.providerResponse = {
+                        ...(paymentInTx.providerResponse || {}),
+                        autoRefundOnCancel: true,
+                        refundAt: new Date().toISOString()
+                    };
+                    await paymentInTx.save({ session });
                 }
 
                 await orderModel.findByIdAndUpdate(
@@ -278,8 +388,20 @@ router.put('/:id/status', CheckLogin, CheckRole(['Admin']), async function (req,
 
         // If marked as Paid, update payment
         if (status === 'Paid') {
+            let paidUpdate = { status: 'paid' };
+            if (!payment || !payment.paidAt) {
+                paidUpdate.paidAt = new Date();
+            }
+
             await paymentModel.findOneAndUpdate(
                 { order: order._id },
+                paidUpdate
+            );
+        }
+
+        if (status === 'Delivered' && existingOrder.paymentMethod === 'COD') {
+            await paymentModel.findOneAndUpdate(
+                { order: order._id, method: 'COD' },
                 { status: 'paid', paidAt: new Date() }
             );
         }
