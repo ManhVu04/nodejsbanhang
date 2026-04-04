@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Card, Tag, Button, message } from 'antd';
 import { LeftOutlined, RightOutlined, PlayCircleFilled, ShoppingCartOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
@@ -10,38 +10,27 @@ export default function ProductCard({ product }) {
     const dispatch = useDispatch();
     const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-    const normalizedImages = useMemo(() => {
-        let sourceList = Array.isArray(product?.images)
-            ? product.images.map((item) => String(item || '').trim()).filter(Boolean)
-            : [];
-
-        if (sourceList.length === 0) {
-            return [''];
-        }
-
-        return sourceList;
-    }, [product?.images]);
+    let sourceImages = Array.isArray(product?.images)
+        ? product.images.map((item) => String(item || '').trim()).filter(Boolean)
+        : [];
+    let normalizedImages = sourceImages.length > 0 ? sourceImages : [''];
+    let safeActiveImageIndex = Math.max(0, Math.min(activeImageIndex, normalizedImages.length - 1));
 
     const hasMultipleImages = normalizedImages.length > 1;
     const hasVideo = Boolean(product?.mediaMeta?.hasVideo);
 
-    useEffect(() => {
-        setActiveImageIndex(0);
-    }, [product?._id, normalizedImages.length]);
+    const imageUrl = resolveImageUrl(normalizedImages[safeActiveImageIndex]);
 
-    const imageUrl = resolveImageUrl(normalizedImages[activeImageIndex]);
-
-    const thumbnailItems = useMemo(() => {
-        if (normalizedImages.length <= 4) {
-            return normalizedImages.map((filePath, index) => ({ filePath, index }));
-        }
-
-        let startIndex = Math.max(0, Math.min(activeImageIndex - 1, normalizedImages.length - 4));
-        return normalizedImages.slice(startIndex, startIndex + 4).map((filePath, offset) => ({
+    let thumbnailItems = [];
+    if (normalizedImages.length <= 4) {
+        thumbnailItems = normalizedImages.map((filePath, index) => ({ filePath, index }));
+    } else {
+        let startIndex = Math.max(0, Math.min(safeActiveImageIndex - 1, normalizedImages.length - 4));
+        thumbnailItems = normalizedImages.slice(startIndex, startIndex + 4).map((filePath, offset) => ({
             filePath,
             index: startIndex + offset
         }));
-    }, [normalizedImages, activeImageIndex]);
+    }
 
     const handleSelectImage = (event, imageIndex) => {
         event.preventDefault();
@@ -52,8 +41,13 @@ export default function ProductCard({ product }) {
     const handlePrevImage = (event) => {
         event.preventDefault();
         event.stopPropagation();
+        if (normalizedImages.length <= 1) {
+            return;
+        }
+
         setActiveImageIndex((currentIndex) => {
-            let nextIndex = currentIndex - 1;
+            let safeIndex = Math.max(0, Math.min(currentIndex, normalizedImages.length - 1));
+            let nextIndex = safeIndex - 1;
             if (nextIndex < 0) {
                 return normalizedImages.length - 1;
             }
@@ -64,6 +58,10 @@ export default function ProductCard({ product }) {
     const handleNextImage = (event) => {
         event.preventDefault();
         event.stopPropagation();
+        if (normalizedImages.length <= 1) {
+            return;
+        }
+
         setActiveImageIndex((currentIndex) => (currentIndex + 1) % normalizedImages.length);
     };
 
@@ -122,7 +120,7 @@ export default function ProductCard({ product }) {
                                         <button
                                             key={`${product?._id}-${thumbItem?.index}`}
                                             type="button"
-                                            className={`product-card__thumb ${thumbItem?.index === activeImageIndex ? 'product-card__thumb--active' : ''}`}
+                                            className={`product-card__thumb ${thumbItem?.index === safeActiveImageIndex ? 'product-card__thumb--active' : ''}`}
                                             onClick={(event) => handleSelectImage(event, thumbItem?.index)}
                                             aria-label={`Chọn ảnh ${thumbItem?.index + 1}`}
                                         >
