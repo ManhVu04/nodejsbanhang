@@ -51,6 +51,7 @@ app.use("/", indexRouter);
 app.use("/api/v1/users", usersRouter);
 app.use("/api/v1/categories", require("./routes/categories"));
 app.use("/api/v1/products", require("./routes/products"));
+app.use("/api/v1/product-media", require("./routes/productMedia"));
 app.use("/api/v1/roles", require("./routes/roles"));
 app.use("/api/v1/auth", require("./routes/auth"));
 app.use("/api/v1/carts", require("./routes/carts"));
@@ -65,6 +66,7 @@ app.use("/api/v1/reviews", require("./routes/reviews"));
 app.use("/api/v1/returns", require("./routes/returns"));
 app.use("/api/v1/reservations", require("./routes/reservations"));
 app.use("/api/v1/addresses", require("./routes/addresses"));
+app.use("/api/v1/audit-logs", require("./routes/auditLogs"));
 
 const isProduction = process.env.NODE_ENV === "production";
 const configuredMongoUri = (process.env.MONGODB_URI || "").trim();

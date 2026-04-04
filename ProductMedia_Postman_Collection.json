@@ -1,0 +1,427 @@
+{
+  "info": {
+    "_postman_id": "productmedia-collection-2024",
+    "name": "ProductMedia API",
+    "description": "Complete API collection for ProductMedia - Separate media management for products",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "ProductMedia Endpoints",
+      "item": [
+        {
+          "name": "1. GET - Fetch All Media for Product",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/v1/product-media/65abc123def456789012345",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "v1", "product-media", "65abc123def456789012345"]
+            },
+            "description": "Get all media (images & videos) for a product\n\n**Response**: Array of media objects with metadata"
+          },
+          "response": []
+        },
+        {
+          "name": "2. POST - Upload Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer YOUR_ADMIN_TOKEN_HERE",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "",
+                  "disabled": false
+                },
+                {
+                  "key": "mediaType",
+                  "value": "image",
+                  "type": "text"
+                },
+                {
+                  "key": "altText",
+                  "value": "Ảnh sản phẩm chính",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/v1/product-media/upload/65abc123def456789012345",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "v1", "product-media", "upload", "65abc123def456789012345"]
+            },
+            "description": "Upload a new image for a product\n\n**Auth**: Requires Admin token\n**Formats**: JPG, PNG, WebP, GIF\n**Max Size**: 10MB (configurable)"
+          },
+          "response": []
+        },
+        {
+          "name": "3. POST - Upload Video",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer YOUR_ADMIN_TOKEN_HERE",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "",
+                  "disabled": false
+                },
+                {
+                  "key": "mediaType",
+                  "value": "video",
+                  "type": "text"
+                },
+                {
+                  "key": "altText",
+                  "value": "Video demo sản phẩm",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/v1/product-media/upload/65abc123def456789012345",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "v1", "product-media", "upload", "65abc123def456789012345"]
+            },
+            "description": "Upload a new video for a product\n\n**Auth**: Requires Admin token\n**Formats**: MP4, WebM, OGG, MOV\n**Max Size**: 100MB (configurable)"
+          },
+          "response": []
+        },
+        {
+          "name": "4. PUT - Update Media (Alt Text)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer YOUR_ADMIN_TOKEN_HERE",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"altText\": \"Ảnh sản phẩm cập nhật\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/v1/product-media/65abc123def456789012347",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "v1", "product-media", "65abc123def456789012347"]
+            },
+            "description": "Update media alt text for SEO\n\n**Auth**: Requires Admin token"
+          },
+          "response": []
+        },
+        {
+          "name": "5. PUT - Set Media as Default",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer YOUR_ADMIN_TOKEN_HERE",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isDefault\": true\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/v1/product-media/65abc123def456789012347",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "v1", "product-media", "65abc123def456789012347"]
+            },
+            "description": "Set a media as the default one for product\n\n**Auth**: Requires Admin token\n**Note**: Only 1 default media per product"
+          },
+          "response": []
+        },
+        {
+          "name": "6. PUT - Update Display Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer YOUR_ADMIN_TOKEN_HERE",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayOrder\": 2\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/v1/product-media/65abc123def456789012347",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "v1", "product-media", "65abc123def456789012347"]
+            },
+            "description": "Update display order of media in gallery\n\n**Auth**: Requires Admin token"
+          },
+          "response": []
+        },
+        {
+          "name": "7. PUT - Reorder All Media for Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer YOUR_ADMIN_TOKEN_HERE",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mediaOrder\": [\n    {\n      \"mediaId\": \"65abc123def456789012346\",\n      \"displayOrder\": 0\n    },\n    {\n      \"mediaId\": \"65abc123def456789012347\",\n      \"displayOrder\": 1\n    },\n    {\n      \"mediaId\": \"65abc123def456789012348\",\n      \"displayOrder\": 2\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/v1/product-media/reorder/65abc123def456789012345",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "v1", "product-media", "reorder", "65abc123def456789012345"]
+            },
+            "description": "Reorder all media for a product (e.g., from drag-n-drop)\n\n**Auth**: Requires Admin token"
+          },
+          "response": []
+        },
+        {
+          "name": "8. DELETE - Delete Media",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer YOUR_ADMIN_TOKEN_HERE",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3000/api/v1/product-media/65abc123def456789012347",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "v1", "product-media", "65abc123def456789012347"]
+            },
+            "description": "Delete a media (soft delete + file removal)\n\n**Auth**: Requires Admin token\n**Note**: File is deleted from server, record marked as deleted"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Complete Test Scenarios",
+      "item": [
+        {
+          "name": "Scenario 1: Upload and Set as Default",
+          "item": [
+            {
+              "name": "Step 1: Upload first image",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer YOUR_ADMIN_TOKEN_HERE",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": ""
+                    },
+                    {
+                      "key": "mediaType",
+                      "value": "image",
+                      "type": "text"
+                    },
+                    {
+                      "key": "altText",
+                      "value": "Ảnh mặc định",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "http://localhost:3000/api/v1/product-media/upload/65abc123def456789012345",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "3000",
+                  "path": ["api", "v1", "product-media", "upload", "65abc123def456789012345"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Step 2: Verify media created",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:3000/api/v1/product-media/65abc123def456789012345",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "3000",
+                  "path": ["api", "v1", "product-media", "65abc123def456789012345"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Scenario 2: Build a Photo Gallery",
+          "item": [
+            {
+              "name": "Step 1: Upload multiple images",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer YOUR_ADMIN_TOKEN_HERE",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": ""
+                    },
+                    {
+                      "key": "mediaType",
+                      "value": "image",
+                      "type": "text"
+                    },
+                    {
+                      "key": "altText",
+                      "value": "Ảnh góc 1",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "http://localhost:3000/api/v1/product-media/upload/65abc123def456789012345",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "3000",
+                  "path": ["api", "v1", "product-media", "upload", "65abc123def456789012345"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Step 2: Reorder gallery",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer YOUR_ADMIN_TOKEN_HERE",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mediaOrder\": [\n    { \"mediaId\": \"first-id\", \"displayOrder\": 0 },\n    { \"mediaId\": \"second-id\", \"displayOrder\": 1 }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "http://localhost:3000/api/v1/product-media/reorder/65abc123def456789012345",
+                  "protocol": "http",
+                  "host": ["localhost"],
+                  "port": "3000",
+                  "path": ["api", "v1", "product-media", "reorder", "65abc123def456789012345"]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "product_id",
+      "value": "65abc123def456789012345",
+      "type": "string"
+    },
+    {
+      "key": "media_id",
+      "value": "65abc123def456789012347",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "YOUR_ADMIN_TOKEN_HERE",
+      "type": "string"
+    }
+  ]
+}

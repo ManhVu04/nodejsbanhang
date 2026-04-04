@@ -2,6 +2,7 @@ var express = require("express");
 var router = express.Router();
 let mongoose = require("mongoose");
 let { CheckLogin, CheckRole } = require("../utils/authHandler");
+let { logAuditAction, getClientIpAddress } = require("../utils/auditHandler");
 let orderModel = require("../schemas/orders");
 let cartModel = require("../schemas/carts");
 let inventoryModel = require("../schemas/inventories");
@@ -541,6 +542,20 @@ router.put(
           let updatedOrder = await orderModel
             .findById(existingOrder._id)
             .populate("items.product", "title images price");
+          
+          // Log audit action for order cancellation
+          await logAuditAction({
+            action: 'ORDER_UPDATE_STATUS',
+            adminId: req.user._id,
+            resourceType: 'order',
+            resourceId: existingOrder._id,
+            before: { status: existingOrder.status },
+            after: { status: 'Cancelled' },
+            description: `Cancelled order #${existingOrder._id}: Stock restored, payment refunded if applicable`,
+            ipAddress: getClientIpAddress(req),
+            success: true
+          });
+          
           return res.send({
             message: "Cập nhật trạng thái thành công",
             order: updatedOrder,
@@ -572,6 +587,19 @@ router.put(
           { status: "paid", paidAt: new Date() },
         );
       }
+
+      // Log audit action for order status update
+      await logAuditAction({
+        action: 'ORDER_UPDATE_STATUS',
+        adminId: req.user._id,
+        resourceType: 'order',
+        resourceId: order._id,
+        before: { status: existingOrder.status },
+        after: { status: status },
+        description: `Updated order #${order._id} status from ${existingOrder.status} to ${status}`,
+        ipAddress: getClientIpAddress(req),
+        success: true
+      });
 
       res.send({ message: "Cập nhật trạng thái thành công", order });
     } catch (err) {
