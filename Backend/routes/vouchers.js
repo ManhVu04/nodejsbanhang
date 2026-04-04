@@ -1,11 +1,20 @@
 let express = require('express');
 let router = express.Router();
+let mongoose = require('mongoose');
 let voucherModel = require('../schemas/vouchers');
 let orderModel = require('../schemas/orders');
 let { CheckLogin, CheckRole } = require('../utils/authHandler');
+let { logAuditAction, getClientIpAddress } = require('../utils/auditHandler');
 let { normalizeVoucherCode, validateVoucherForOrder } = require('../utils/voucherHandler');
 
 const adminGuard = [CheckLogin, CheckRole(['Admin'])];
+
+function safeResourceId(rawId) {
+    if (mongoose.isValidObjectId(rawId)) {
+        return rawId;
+    }
+    return new mongoose.Types.ObjectId();
+}
 
 router.get('/validate/:code', async function (req, res) {
     try {
@@ -81,19 +90,68 @@ router.post('/', adminGuard, async function (req, res) {
         if (existing && existing.isDeleted) {
             Object.assign(existing, payload, { isDeleted: false });
             await existing.save();
+
+            await logAuditAction({
+                action: 'VOUCHER_UPDATE',
+                adminId: req.user?._id,
+                resourceType: 'voucher',
+                resourceId: existing._id,
+                before: null,
+                after: existing.toObject(),
+                description: `Restored voucher: ${existing.code}`,
+                ipAddress: getClientIpAddress(req),
+                success: true
+            });
+
             return res.send(existing);
         }
 
         let newVoucher = new voucherModel(payload);
         await newVoucher.save();
+
+        await logAuditAction({
+            action: 'VOUCHER_CREATE',
+            adminId: req.user?._id,
+            resourceType: 'voucher',
+            resourceId: newVoucher._id,
+            before: null,
+            after: newVoucher.toObject(),
+            description: `Created voucher: ${newVoucher.code}`,
+            ipAddress: getClientIpAddress(req),
+            success: true
+        });
+
         return res.send(newVoucher);
     } catch (error) {
+        await logAuditAction({
+            action: 'VOUCHER_CREATE',
+            adminId: req.user?._id,
+            resourceType: 'voucher',
+            resourceId: new mongoose.Types.ObjectId(),
+            before: null,
+            after: req.body,
+            description: `Failed to create voucher: ${req.body?.code || 'Unknown'}`,
+            ipAddress: getClientIpAddress(req),
+            success: false,
+            errorMessage: error.message
+        });
+
         return res.status(400).send({ message: error.message });
     }
 });
 
 router.put('/:id', adminGuard, async function (req, res) {
     try {
+        let existingVoucher = await voucherModel.findOne({
+            _id: req.params.id,
+            isDeleted: false
+        });
+
+        if (!existingVoucher) {
+            return res.status(404).send({ message: 'Voucher khong ton tai' });
+        }
+
+        let beforeData = existingVoucher.toObject();
         let updateData = { ...req.body };
         if (typeof updateData.code === 'string') {
             updateData.code = normalizeVoucherCode(updateData.code);
@@ -105,18 +163,41 @@ router.put('/:id', adminGuard, async function (req, res) {
             { new: true }
         );
 
-        if (!voucher) {
-            return res.status(404).send({ message: 'Voucher khong ton tai' });
-        }
+        await logAuditAction({
+            action: 'VOUCHER_UPDATE',
+            adminId: req.user?._id,
+            resourceType: 'voucher',
+            resourceId: voucher._id,
+            before: beforeData,
+            after: voucher.toObject(),
+            description: `Updated voucher: ${voucher.code}`,
+            ipAddress: getClientIpAddress(req),
+            success: true
+        });
 
         return res.send(voucher);
     } catch (error) {
+        await logAuditAction({
+            action: 'VOUCHER_UPDATE',
+            adminId: req.user?._id,
+            resourceType: 'voucher',
+            resourceId: safeResourceId(req.params?.id),
+            before: null,
+            after: req.body,
+            description: `Failed to update voucher: ${req.params?.id || 'Unknown'}`,
+            ipAddress: getClientIpAddress(req),
+            success: false,
+            errorMessage: error.message
+        });
+
         return res.status(400).send({ message: error.message });
     }
 });
 
 router.delete('/:id', adminGuard, async function (req, res) {
     try {
+        let beforeData = await voucherModel.findOne({ _id: req.params.id, isDeleted: false });
+
         let voucher = await voucherModel.findOneAndUpdate(
             { _id: req.params.id, isDeleted: false },
             { isDeleted: true, isActive: false },
@@ -127,8 +208,33 @@ router.delete('/:id', adminGuard, async function (req, res) {
             return res.status(404).send({ message: 'Voucher khong ton tai' });
         }
 
+        await logAuditAction({
+            action: 'VOUCHER_DELETE',
+            adminId: req.user?._id,
+            resourceType: 'voucher',
+            resourceId: voucher._id,
+            before: beforeData?.toObject() || null,
+            after: voucher.toObject(),
+            description: `Deleted voucher: ${voucher.code}`,
+            ipAddress: getClientIpAddress(req),
+            success: true
+        });
+
         return res.send({ message: 'Da xoa voucher', voucher });
     } catch (error) {
+        await logAuditAction({
+            action: 'VOUCHER_DELETE',
+            adminId: req.user?._id,
+            resourceType: 'voucher',
+            resourceId: safeResourceId(req.params?.id),
+            before: null,
+            after: null,
+            description: `Failed to delete voucher: ${req.params?.id || 'Unknown'}`,
+            ipAddress: getClientIpAddress(req),
+            success: false,
+            errorMessage: error.message
+        });
+
         return res.status(400).send({ message: error.message });
     }
 });

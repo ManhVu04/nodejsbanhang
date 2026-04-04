@@ -20,7 +20,13 @@ const auditLogSchema = mongoose.Schema(
         'USER_DELETE',
         'CATEGORY_CREATE',
         'CATEGORY_UPDATE',
-        'CATEGORY_DELETE'
+        'CATEGORY_DELETE',
+        'PRODUCT_MEDIA_UPLOAD',
+        'PRODUCT_MEDIA_UPDATE',
+        'PRODUCT_MEDIA_DELETE',
+        'PRODUCT_MEDIA_REORDER',
+        'USER_CREATE',
+        'RETURN_REVIEW'
       ],
       required: true
     },
@@ -32,7 +38,7 @@ const auditLogSchema = mongoose.Schema(
     resource: {
       type: {
         type: String,
-        enum: ['product', 'inventory', 'order', 'voucher', 'user', 'category'],
+        enum: ['product', 'inventory', 'order', 'voucher', 'user', 'category', 'productMedia', 'returnRequest'],
         required: true
       },
       id: {
@@ -63,13 +69,14 @@ const auditLogSchema = mongoose.Schema(
     }
   },
   {
-    timestamps: true,
-    indexes: [
-      { resource_type: 1, createdAt: -1 },
-      { admin: 1, createdAt: -1 },
-      { action: 1, createdAt: -1 }
-    ]
+    timestamps: true
   }
 );
+
+auditLogSchema.index({ 'resource.type': 1, createdAt: -1 });
+auditLogSchema.index({ 'resource.id': 1, createdAt: -1 });
+auditLogSchema.index({ admin: 1, createdAt: -1 });
+auditLogSchema.index({ action: 1, createdAt: -1 });
+auditLogSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('auditLog', auditLogSchema);

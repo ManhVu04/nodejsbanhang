@@ -52,7 +52,7 @@ let productMediaSchema = mongoose.Schema({
     timestamps: true
 });
 
-productMediaSchema.pre('save', async function(next) {
+productMediaSchema.pre('save', async function() {
     if (this.isDefault && !this.isDeleted) {
         await mongoose.model('productMedia').updateMany(
             { 
@@ -63,7 +63,6 @@ productMediaSchema.pre('save', async function(next) {
             { isDefault: false }
         );
     }
-    next();
 });
 
 productMediaSchema.index({ product: 1, displayOrder: 1 });

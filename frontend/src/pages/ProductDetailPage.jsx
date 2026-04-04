@@ -4,7 +4,7 @@ import { Row, Col, Typography, Button, Tag, Divider, Spin, message, Image, Card,
 import { ShoppingCartOutlined, HomeOutlined, UserOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { addToCart, fetchCart } from '../store/slices/cartSlice';
-import api, { resolveImageUrl } from '../utils/api';
+import api, { resolveImageUrl, resolveUploadUrl } from '../utils/api';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -38,6 +38,46 @@ function normalizeReviewStats(rawStats) {
     };
 }
 
+function buildFallbackMediaItems(imageList = []) {
+    let normalizedImageList = Array.isArray(imageList)
+        ? imageList.map((item) => String(item || '').trim()).filter(Boolean)
+        : [];
+
+    return normalizedImageList.map((filePath, index) => ({
+        _id: `fallback-image-${index}`,
+        mediaType: 'image',
+        filePath,
+        fileName: filePath,
+        displayOrder: index,
+        isDefault: index === 0
+    }));
+}
+
+function normalizeProductMediaList(rawMediaList, fallbackImageList = []) {
+    let normalizedMediaList = Array.isArray(rawMediaList)
+        ? rawMediaList
+            .map((mediaItem, index) => ({
+                _id: String(mediaItem?._id || `media-${index}`),
+                mediaType: String(mediaItem?.mediaType || '').toLowerCase() === 'video' ? 'video' : 'image',
+                filePath: String(mediaItem?.filePath || '').trim(),
+                fileName: String(mediaItem?.fileName || mediaItem?.filePath || '').trim(),
+                displayOrder: Number(mediaItem?.displayOrder || 0),
+                isDefault: mediaItem?.isDefault === true
+            }))
+            .filter((mediaItem) => Boolean(mediaItem?.filePath))
+        : [];
+
+    if (normalizedMediaList.length === 0) {
+        return buildFallbackMediaItems(fallbackImageList);
+    }
+
+    return normalizedMediaList.sort((leftItem, rightItem) => {
+        if (leftItem?.isDefault && !rightItem?.isDefault) return -1;
+        if (!leftItem?.isDefault && rightItem?.isDefault) return 1;
+        return Number(leftItem?.displayOrder || 0) - Number(rightItem?.displayOrder || 0);
+    });
+}
+
 export default function ProductDetailPage() {
     const { id } = useParams();
     const { user } = useSelector((state) => state?.auth || {});
@@ -46,6 +86,9 @@ export default function ProductDetailPage() {
     const [quantity, setQuantity] = useState(1);
     const [actionLoading, setActionLoading] = useState('');
     const [showStockLimitWarning, setShowStockLimitWarning] = useState(false);
+    const [productMediaItems, setProductMediaItems] = useState([]);
+    const [productMediaLoading, setProductMediaLoading] = useState(false);
+    const [activeMediaIndex, setActiveMediaIndex] = useState(0);
     const [reviews, setReviews] = useState([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [reviewsSubmitting, setReviewsSubmitting] = useState(false);
@@ -90,6 +133,50 @@ export default function ProductDetailPage() {
             isCancelled = true;
         };
     }, [id, navigate]);
+
+    useEffect(() => {
+        setProductMediaItems([]);
+        setActiveMediaIndex(0);
+    }, [id]);
+
+    useEffect(() => {
+        if (!product?._id) {
+            return undefined;
+        }
+
+        let isCancelled = false;
+
+        const fetchProductMedia = async () => {
+            setProductMediaLoading(true);
+            try {
+                const mediaRes = await api.get(`/product-media/${product?._id}`);
+                if (isCancelled) {
+                    return;
+                }
+
+                const normalizedMedia = normalizeProductMediaList(mediaRes?.data?.media, product?.images);
+                setProductMediaItems(normalizedMedia);
+                setActiveMediaIndex(0);
+            } catch {
+                if (isCancelled) {
+                    return;
+                }
+
+                setProductMediaItems(buildFallbackMediaItems(product?.images));
+                setActiveMediaIndex(0);
+            } finally {
+                if (!isCancelled) {
+                    setProductMediaLoading(false);
+                }
+            }
+        };
+
+        fetchProductMedia();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [product?._id, product?.images]);
 
     const loadReviews = useCallback(async (targetPage = 1, targetFilter = reviewFilter) => {
         try {
@@ -317,7 +404,7 @@ export default function ProductDetailPage() {
     if (loading) return <div className="page-container" style={{ textAlign: 'center', paddingBlock: 80 }}><Spin size="large" /></div>;
     if (!product) return null;
 
-    const imageUrl = resolveImageUrl(product?.images?.[0]);
+    const activeMediaItem = productMediaItems[activeMediaIndex] || null;
     const currentAverageRating = Number(reviewStats?.averageRating || 0);
     const currentReviewCount = Number(reviewStats?.reviewCount || 0);
     const reviewFilters = [
@@ -341,13 +428,68 @@ export default function ProductDetailPage() {
                 <Row>
                     <Col xs={24} md={12}>
                         <div style={{ padding: 24, background: '#fafafa', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-                            <Image
-                                src={imageUrl}
-                                alt={product?.title}
-                                style={{ maxHeight: 400, objectFit: 'contain', borderRadius: 8 }}
-                                preview={{ mask: 'Xem ảnh lớn' }}
-                            />
+                            {productMediaLoading ? (
+                                <Spin size="large" />
+                            ) : activeMediaItem?.mediaType === 'video' ? (
+                                <video
+                                    key={activeMediaItem?._id}
+                                    controls
+                                    preload="metadata"
+                                    style={{ width: '100%', maxHeight: 400, borderRadius: 8, background: '#111' }}
+                                    src={resolveUploadUrl(activeMediaItem?.filePath)}
+                                >
+                                    Trinh duyet cua ban khong ho tro video.
+                                </video>
+                            ) : activeMediaItem?.filePath ? (
+                                <Image
+                                    src={resolveImageUrl(activeMediaItem?.filePath)}
+                                    alt={product?.title}
+                                    style={{ maxHeight: 400, objectFit: 'contain', borderRadius: 8 }}
+                                    preview={{ mask: 'Xem ảnh lớn' }}
+                                />
+                            ) : (
+                                <Empty description="Chưa có media" />
+                            )}
                         </div>
+
+                        {productMediaItems.length > 1 && (
+                            <div style={{ padding: '0 24px 20px', background: '#fafafa' }}>
+                                <Space size={10} wrap>
+                                    {productMediaItems.map((mediaItem, mediaIndex) => {
+                                        const isActiveMedia = mediaIndex === activeMediaIndex;
+                                        return (
+                                            <button
+                                                key={mediaItem?._id}
+                                                type="button"
+                                                onClick={() => setActiveMediaIndex(mediaIndex)}
+                                                style={{
+                                                    padding: 0,
+                                                    border: isActiveMedia ? '2px solid #1677ff' : '1px solid #d9d9d9',
+                                                    borderRadius: 10,
+                                                    width: 74,
+                                                    height: 74,
+                                                    background: '#fff',
+                                                    cursor: 'pointer',
+                                                    overflow: 'hidden'
+                                                }}
+                                            >
+                                                {mediaItem?.mediaType === 'video' ? (
+                                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#111', color: '#fff', fontSize: 11, fontWeight: 700 }}>
+                                                        VIDEO
+                                                    </div>
+                                                ) : (
+                                                    <img
+                                                        src={resolveImageUrl(mediaItem?.filePath)}
+                                                        alt={mediaItem?.fileName || product?.title}
+                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                    />
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </Space>
+                            </div>
+                        )}
                     </Col>
                     <Col xs={24} md={12}>
                         <div style={{ padding: 32 }}>

@@ -25,13 +25,13 @@ function normalizeAuthToken(tokenValue) {
         .replace(/^"|"$/g, '');
 }
 
-export function resolveImageUrl(imageValue, fallback = FALLBACK_IMAGE) {
-    let rawValue = String(imageValue || '').trim();
+export function resolveUploadUrl(fileValue, fallback = '') {
+    let rawValue = String(fileValue || '').trim();
     if (!rawValue) {
         return fallback;
     }
 
-    if (/^https?:\/\//i.test(rawValue) || rawValue.startsWith('data:image')) {
+    if (/^https?:\/\//i.test(rawValue) || rawValue.startsWith('data:')) {
         return rawValue;
     }
 
@@ -52,6 +52,10 @@ export function resolveImageUrl(imageValue, fallback = FALLBACK_IMAGE) {
     }
 
     return fallback;
+}
+
+export function resolveImageUrl(imageValue, fallback = FALLBACK_IMAGE) {
+    return resolveUploadUrl(imageValue, fallback);
 }
 
 const api = axios.create({
