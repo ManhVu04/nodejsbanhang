@@ -5,11 +5,15 @@ let router = express.Router();
 let addressModel = require("../schemas/addresses");
 let { CheckLogin } = require("../utils/authHandler");
 
+function normalizePhoneNumber(phoneNumberValue) {
+  return String(phoneNumberValue || "");
+}
+
 function normalizeAddressPayload(payload) {
   let normalizedPayload = {
     label: String(payload?.label || "").trim(),
     recipientName: String(payload?.recipientName || "").trim(),
-    phoneNumber: String(payload?.phoneNumber || "").trim(),
+    phoneNumber: normalizePhoneNumber(payload?.phoneNumber),
     addressLine: String(payload?.addressLine || "").trim(),
     isDefault: payload?.isDefault === true,
   };
@@ -30,11 +34,12 @@ function validateAddressPayload(payload) {
     return "Dia chi phai co it nhat 8 ky tu";
   }
 
-  if (
-    payload?.phoneNumber &&
-    !/^[0-9+\-\s]{8,20}$/.test(payload?.phoneNumber)
-  ) {
-    return "So dien thoai khong hop le";
+  if (!payload?.phoneNumber) {
+    return "So dien thoai khong duoc de trong";
+  }
+
+  if (!/^\d{10}$/.test(payload?.phoneNumber)) {
+    return "So dien thoai phai gom dung 10 chu so, vi du: 0869727139";
   }
 
   return "";
@@ -213,9 +218,7 @@ router.delete("/:id", CheckLogin, async function (req, res) {
 
     let wasDefault = existingAddress?.isDefault === true;
 
-    existingAddress.isDeleted = true;
-    existingAddress.isDefault = false;
-    await existingAddress.save();
+    await existingAddress.deleteOne();
 
     if (wasDefault) {
       let nextDefaultAddress = await addressModel
@@ -240,3 +243,8 @@ router.delete("/:id", CheckLogin, async function (req, res) {
 });
 
 module.exports = router;
+module.exports.__testables = {
+  normalizePhoneNumber,
+  normalizeAddressPayload,
+  validateAddressPayload,
+};

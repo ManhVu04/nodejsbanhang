@@ -66,9 +66,9 @@ app.use("/api/v1/addresses", require("./routes/addresses"));
 const isProduction = process.env.NODE_ENV === "production";
 const configuredMongoUri = (process.env.MONGODB_URI || "").trim();
 const devMongoFallbackUris = [
-  "mongodb://127.0.0.1:27019/nodejs?directConnection=true",
   "mongodb://127.0.0.1:27017/nodejs?directConnection=true",
   "mongodb://127.0.0.1:27018/nodejs?directConnection=true",
+  "mongodb://127.0.0.1:27019/nodejs?directConnection=true",
   "mongodb://localhost:27017/nodejs",
 ];
 const mongoUriCandidates = configuredMongoUri
@@ -81,12 +81,33 @@ function sanitizeMongoUri(uri) {
   return uri.replace(/\/\/([^@]+)@/, "//***:***@");
 }
 
+async function isWritableMongoConnection() {
+  try {
+    let hello = await mongoose.connection.db.admin().command({ hello: 1 });
+    return hello?.isWritablePrimary === true || hello?.ismaster === true;
+  } catch (error) {
+    let isMaster = await mongoose.connection.db.admin().command({ isMaster: 1 });
+    return isMaster?.ismaster === true;
+  }
+}
+
 async function connectMongo() {
   let lastError;
 
   for (const uri of [...new Set(mongoUriCandidates)]) {
     try {
       await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+
+      let isWritablePrimary = await isWritableMongoConnection();
+      if (!isWritablePrimary) {
+        lastError = new Error(
+          `MongoDB node is not writable primary: ${sanitizeMongoUri(uri)}`,
+        );
+        console.error(lastError.message);
+        await mongoose.disconnect();
+        continue;
+      }
+
       console.log(`MongoDB connected: ${sanitizeMongoUri(uri)}`);
       return;
     } catch (err) {

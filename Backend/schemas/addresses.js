@@ -18,7 +18,8 @@ let addressSchema = mongoose.Schema(
     },
     phoneNumber: {
       type: String,
-      default: "",
+      required: [true, "So dien thoai khong duoc de trong"],
+      match: [/^\d{10}$/, "So dien thoai phai gom dung 10 chu so, vi du: 0869727139"],
     },
     addressLine: {
       type: String,

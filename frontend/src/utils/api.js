@@ -18,6 +18,13 @@ function extractFilename(imageValue) {
     return normalized.split('/').filter(Boolean).pop() || '';
 }
 
+function normalizeAuthToken(tokenValue) {
+    return String(tokenValue || '')
+        .trim()
+        .replace(/^bearer\s+/i, '')
+        .replace(/^"|"$/g, '');
+}
+
 export function resolveImageUrl(imageValue, fallback = FALLBACK_IMAGE) {
     let rawValue = String(imageValue || '').trim();
     if (!rawValue) {
@@ -58,9 +65,9 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
+        const token = normalizeAuthToken(localStorage.getItem('token'));
         if (token) {
-            config.headers.Authorization = token;
+            config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
     },

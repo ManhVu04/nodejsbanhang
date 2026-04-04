@@ -84,6 +84,10 @@ export default function ProfilePage() {
     ).trim();
   };
 
+  const normalizePhoneNumber = (phoneNumberValue) => {
+    return String(phoneNumberValue || "");
+  };
+
   const loadAddresses = async () => {
     try {
       setAddressesLoading(true);
@@ -176,7 +180,7 @@ export default function ProfilePage() {
       let payload = {
         label: String(values?.label || "").trim(),
         recipientName: String(values?.recipientName || "").trim(),
-        phoneNumber: String(values?.phoneNumber || "").trim(),
+        phoneNumber: normalizePhoneNumber(values?.phoneNumber),
         addressLine: String(values?.addressLine || "").trim(),
         isDefault: values?.isDefault === true,
       };
@@ -192,6 +196,11 @@ export default function ProfilePage() {
       closeAddressModal();
       await loadAddresses();
     } catch (err) {
+      if (err?.response?.status === 401) {
+        message.error("Phien dang nhap da het han, vui long dang nhap lai");
+        return;
+      }
+
       message.error(err?.response?.data?.message || "Luu dia chi that bai");
     } finally {
       setSavingAddress(false);
@@ -575,12 +584,16 @@ export default function ProfilePage() {
             label="So dien thoai"
             rules={[
               {
-                pattern: /^[0-9+\-\s]{8,20}$/,
-                message: "So dien thoai khong hop le",
+                required: true,
+                message: "Nhap so dien thoai",
+              },
+              {
+                pattern: /^\d{10}$/,
+                message: "So dien thoai phai gom dung 10 chu so, vi du: 0869727139",
               },
             ]}
           >
-            <Input placeholder="So dien thoai (tuy chon)" />
+            <Input placeholder="Vi du: 0869727139" maxLength={10} />
           </Form.Item>
           <Form.Item
             name="addressLine"
