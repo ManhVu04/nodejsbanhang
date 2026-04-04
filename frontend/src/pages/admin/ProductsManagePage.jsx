@@ -51,7 +51,7 @@ export default function ProductsManagePage() {
             if (defaultImage) {
                 form.setFieldValue('images', defaultImage);
             }
-        } catch (error) {
+        } catch {
             setProductMediaList([]);
         } finally {
             setMediaLoading(false);
