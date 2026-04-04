@@ -47,6 +47,15 @@ function resolveShippingAddress(selectedAddress, rawShippingAddress) {
   return String(rawShippingAddress || "").trim();
 }
 
+function resolveShippingPhoneNumber(selectedAddress, rawShippingPhoneNumber) {
+  let fromSavedAddress = String(selectedAddress?.phoneNumber || "").trim();
+  if (fromSavedAddress) {
+    return fromSavedAddress;
+  }
+
+  return String(rawShippingPhoneNumber || "").trim();
+}
+
 function getAvailableStock(inventoryItem) {
   return Math.max(
     0,
@@ -67,6 +76,7 @@ router.post("/", CheckLogin, async function (req, res) {
     let {
       paymentMethod,
       shippingAddress,
+      shippingPhoneNumber,
       note,
       voucherCode,
       shippingAddressId,
@@ -102,6 +112,16 @@ router.post("/", CheckLogin, async function (req, res) {
     );
     if (!resolvedShippingAddress) {
       throw new Error("Dia chi giao hang khong duoc de trong");
+    }
+
+    let resolvedShippingPhoneNumber = resolveShippingPhoneNumber(
+      selectedAddress,
+      shippingPhoneNumber,
+    );
+    if (!/^\d{10}$/.test(resolvedShippingPhoneNumber)) {
+      throw new Error(
+        "So dien thoai giao hang phai gom dung 10 chu so, vi du: 0869727139",
+      );
     }
 
     // Get user's cart
@@ -252,6 +272,7 @@ router.post("/", CheckLogin, async function (req, res) {
       status: paymentMethod === "COD" ? "Pending" : "Pending",
       paymentMethod: paymentMethod,
       shippingAddress: resolvedShippingAddress,
+      shippingPhoneNumber: resolvedShippingPhoneNumber,
       shippingAddressId: selectedAddress?._id || null,
       note: note || "",
       voucher: appliedVoucher

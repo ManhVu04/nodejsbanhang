@@ -79,6 +79,10 @@ let orderSchema = mongoose.Schema(
       type: String,
       default: "",
     },
+    shippingPhoneNumber: {
+      type: String,
+      default: "",
+    },
     shippingAddressId: {
       type: mongoose.Types.ObjectId,
       ref: "address",
