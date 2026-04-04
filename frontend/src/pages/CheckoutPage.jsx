@@ -25,6 +25,7 @@ export default function CheckoutPage() {
   const { items } = useSelector((state) => state.cart);
   const { user } = useSelector((state) => state.auth);
   const [paymentMethod, setPaymentMethod] = useState("COD");
+  const [shippingPhoneNumber, setShippingPhoneNumber] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
   const [addresses, setAddresses] = useState([]);
   const [addressesLoading, setAddressesLoading] = useState(false);
@@ -54,6 +55,7 @@ export default function CheckoutPage() {
       if (!user?._id) {
         setAddresses([]);
         setSelectedAddressId(MANUAL_ADDRESS_OPTION);
+        setShippingPhoneNumber("");
         return;
       }
 
@@ -82,8 +84,12 @@ export default function CheckoutPage() {
                 "",
             ).trim(),
           );
+          setShippingPhoneNumber(
+            String(defaultAddress?.phoneNumber || "").trim(),
+          );
         } else {
           setSelectedAddressId(MANUAL_ADDRESS_OPTION);
+          setShippingPhoneNumber("");
         }
       } catch (err) {
         if (!shouldIgnore) {
@@ -122,11 +128,15 @@ export default function CheckoutPage() {
         selectedAddress?.formattedAddress || selectedAddress?.addressLine || "",
       ).trim()
     : String(shippingAddress || "").trim();
+  const resolvedShippingPhoneNumber = isUsingSavedAddress
+    ? String(selectedAddress?.phoneNumber || "").trim()
+    : String(shippingPhoneNumber || "").trim();
 
   const handleAddressSelection = (value) => {
     setSelectedAddressId(value);
 
     if (value === MANUAL_ADDRESS_OPTION) {
+      setShippingPhoneNumber("");
       return;
     }
 
@@ -138,6 +148,7 @@ export default function CheckoutPage() {
         chosenAddress?.formattedAddress || chosenAddress?.addressLine || "",
       ).trim(),
     );
+    setShippingPhoneNumber(String(chosenAddress?.phoneNumber || "").trim());
     setSaveAddressForFuture(false);
     setSetAsDefaultAddress(false);
   };
@@ -175,6 +186,11 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (!/^\d{10}$/.test(resolvedShippingPhoneNumber)) {
+      message.error("So dien thoai giao hang phai gom dung 10 chu so, vi du: 0869727139");
+      return;
+    }
+
     setLoading(true);
     try {
       let activeShippingAddressId = isUsingSavedAddress
@@ -185,6 +201,7 @@ export default function CheckoutPage() {
         let createAddressResponse = await api.post("/addresses", {
           label: "Dia chi giao hang",
           recipientName: String(user?.fullName || user?.username || "").trim(),
+          phoneNumber: resolvedShippingPhoneNumber,
           addressLine: resolvedShippingAddress,
           isDefault: setAsDefaultAddress,
         });
@@ -215,6 +232,7 @@ export default function CheckoutPage() {
       const res = await api.post("/orders", {
         paymentMethod,
         shippingAddress: resolvedShippingAddress,
+        shippingPhoneNumber: resolvedShippingPhoneNumber,
         shippingAddressId: activeShippingAddressId,
         note,
         voucherCode: voucherInfo?.code || "",
@@ -265,6 +283,21 @@ export default function CheckoutPage() {
             <div style={{ marginBottom: 12 }}>
               <Text strong>Email:</Text> {user?.email}
             </div>
+            <div style={{ marginBottom: 12 }}>
+              <Text strong>Số điện thoại giao hàng *</Text>
+            </div>
+            {isUsingSavedAddress ? (
+              <Input value={resolvedShippingPhoneNumber} disabled />
+            ) : (
+              <Input
+                placeholder="Vi du: 0869727139"
+                value={shippingPhoneNumber}
+                onChange={(event) =>
+                  setShippingPhoneNumber(String(event?.target?.value || "").trim())
+                }
+                maxLength={10}
+              />
+            )}
             <div style={{ marginBottom: 8 }}>
               <Text strong>Địa chỉ giao hàng *</Text>
             </div>
