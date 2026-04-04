@@ -1,6 +1,7 @@
 var express = require("express");
 var router = express.Router();
 let { CheckLogin, CheckRole } = require('../utils/authHandler');
+let { logAuditAction, getClientIpAddress } = require('../utils/auditHandler');
 let inventoryModel = require('../schemas/inventories');
 let inventoryLogModel = require('../schemas/inventoryLogs');
 let productModel = require('../schemas/products');
@@ -73,6 +74,10 @@ router.post('/:productId/stock', CheckLogin, CheckRole(['Admin']), async functio
             return res.status(404).send({ message: 'Sản phẩm không tồn tại' });
         }
 
+        // Get previous inventory state
+        let previousInventory = await inventoryModel.findOne({ product: product._id });
+        let previousStock = previousInventory?.stock || 0;
+
         let inventory = await inventoryModel.findOneAndUpdate(
             { product: product._id },
             { $inc: { stock: quantity } },
@@ -87,6 +92,19 @@ router.post('/:productId/stock', CheckLogin, CheckRole(['Admin']), async functio
             reason: reason || 'Nhập kho',
             performedBy: req.user._id
         }).save();
+
+        // Log audit action
+        await logAuditAction({
+            action: 'INVENTORY_UPDATE_STOCK',
+            adminId: req.user._id,
+            resourceType: 'inventory',
+            resourceId: inventory._id,
+            before: { stock: previousStock },
+            after: { stock: inventory.stock },
+            description: `Added ${quantity} units to product "${product.title}" (Reason: ${reason || 'Nhập kho'})`,
+            ipAddress: getClientIpAddress(req),
+            success: true
+        });
 
         res.send({
             message: `Đã nhập ${quantity} sản phẩm vào kho`,

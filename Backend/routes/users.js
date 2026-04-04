@@ -4,9 +4,29 @@ let { CreateUserValidator, validationResult } = require('../utils/validatorHandl
 let userModel = require("../schemas/users");
 let userController = require('../controllers/users')
 let { CheckLogin, CheckRole } = require('../utils/authHandler')
+let mongoose = require('mongoose')
+let { logAuditAction, getClientIpAddress } = require('../utils/auditHandler')
 
 const adminGuard = [CheckLogin, CheckRole(['Admin'])];
 const adminOrModeratorGuard = [CheckLogin, CheckRole(['Admin', 'Moderator'])];
+
+function safeResourceId(rawId) {
+  if (mongoose.isValidObjectId(rawId)) {
+    return rawId;
+  }
+  return new mongoose.Types.ObjectId();
+}
+
+function sanitizeUserAuditData(userDoc) {
+  if (!userDoc) {
+    return null;
+  }
+  let rawData = typeof userDoc.toObject === 'function' ? userDoc.toObject() : { ...userDoc };
+  if (Object.prototype.hasOwnProperty.call(rawData, 'password')) {
+    delete rawData.password;
+  }
+  return rawData;
+}
 
 router.put('/me', CheckLogin, async function (req, res, next) {
   try {
@@ -92,8 +112,38 @@ router.post("/", adminGuard, CreateUserValidator, validationResult, async functi
     let newItem = await userController.CreateAnUser(
       req.body.username, req.body.password, req.body.email, req.body.role
     )
+
+    await logAuditAction({
+      action: 'USER_CREATE',
+      adminId: req.user?._id,
+      resourceType: 'user',
+      resourceId: newItem._id,
+      before: null,
+      after: sanitizeUserAuditData(newItem),
+      description: `Created user: ${newItem?.username || newItem?._id}`,
+      ipAddress: getClientIpAddress(req),
+      success: true
+    });
+
     res.send(newItem);
   } catch (err) {
+    await logAuditAction({
+      action: 'USER_CREATE',
+      adminId: req.user?._id,
+      resourceType: 'user',
+      resourceId: new mongoose.Types.ObjectId(),
+      before: null,
+      after: {
+        username: req.body?.username,
+        email: req.body?.email,
+        role: req.body?.role
+      },
+      description: `Failed to create user: ${req.body?.username || 'Unknown'}`,
+      ipAddress: getClientIpAddress(req),
+      success: false,
+      errorMessage: err.message
+    });
+
     res.status(400).send({ message: err.message });
   }
 });
@@ -101,6 +151,10 @@ router.post("/", adminGuard, CreateUserValidator, validationResult, async functi
 router.put("/:id", adminGuard, async function (req, res, next) {
   try {
     let id = req.params.id;
+    let beforeUser = await userModel.findById(id);
+
+    if (!beforeUser) return res.status(404).send({ message: "id not found" });
+
     let updatedItem = await
       userModel.findByIdAndUpdate(id, req.body, { new: true });
 
@@ -108,8 +162,34 @@ router.put("/:id", adminGuard, async function (req, res, next) {
 
     let populated = await userModel
       .findById(updatedItem._id)
+
+    await logAuditAction({
+      action: 'USER_UPDATE',
+      adminId: req.user?._id,
+      resourceType: 'user',
+      resourceId: updatedItem._id,
+      before: sanitizeUserAuditData(beforeUser),
+      after: sanitizeUserAuditData(populated || updatedItem),
+      description: `Updated user: ${updatedItem?.username || updatedItem?._id}`,
+      ipAddress: getClientIpAddress(req),
+      success: true
+    });
+
     res.send(populated);
   } catch (err) {
+    await logAuditAction({
+      action: 'USER_UPDATE',
+      adminId: req.user?._id,
+      resourceType: 'user',
+      resourceId: safeResourceId(req.params?.id),
+      before: null,
+      after: sanitizeUserAuditData(req.body),
+      description: `Failed to update user: ${req.params?.id || 'Unknown'}`,
+      ipAddress: getClientIpAddress(req),
+      success: false,
+      errorMessage: err.message
+    });
+
     res.status(400).send({ message: err.message });
   }
 });
@@ -117,6 +197,8 @@ router.put("/:id", adminGuard, async function (req, res, next) {
 router.delete("/:id", adminGuard, async function (req, res, next) {
   try {
     let id = req.params.id;
+    let beforeUser = await userModel.findById(id);
+
     let updatedItem = await userModel.findByIdAndUpdate(
       id,
       { isDeleted: true },
@@ -125,8 +207,34 @@ router.delete("/:id", adminGuard, async function (req, res, next) {
     if (!updatedItem) {
       return res.status(404).send({ message: "id not found" });
     }
+
+    await logAuditAction({
+      action: 'USER_DELETE',
+      adminId: req.user?._id,
+      resourceType: 'user',
+      resourceId: updatedItem._id,
+      before: sanitizeUserAuditData(beforeUser),
+      after: sanitizeUserAuditData(updatedItem),
+      description: `Deleted user: ${updatedItem?.username || updatedItem?._id}`,
+      ipAddress: getClientIpAddress(req),
+      success: true
+    });
+
     res.send(updatedItem);
   } catch (err) {
+    await logAuditAction({
+      action: 'USER_DELETE',
+      adminId: req.user?._id,
+      resourceType: 'user',
+      resourceId: safeResourceId(req.params?.id),
+      before: null,
+      after: null,
+      description: `Failed to delete user: ${req.params?.id || 'Unknown'}`,
+      ipAddress: getClientIpAddress(req),
+      success: false,
+      errorMessage: err.message
+    });
+
     res.status(400).send({ message: err.message });
   }
 });

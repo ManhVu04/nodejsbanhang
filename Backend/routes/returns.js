@@ -4,8 +4,17 @@ let { CheckLogin, CheckRole } = require('../utils/authHandler');
 let returnRequestModel = require('../schemas/returnRequests');
 let orderModel = require('../schemas/orders');
 let paymentModel = require('../schemas/payments');
+let mongoose = require('mongoose');
+let { logAuditAction, getClientIpAddress } = require('../utils/auditHandler');
 
 const adminGuard = [CheckLogin, CheckRole(['Admin'])];
+
+function safeResourceId(rawId) {
+    if (mongoose.isValidObjectId(rawId)) {
+        return rawId;
+    }
+    return new mongoose.Types.ObjectId();
+}
 
 function canCreateReturn(order) {
     return order && ['Delivered', 'Paid'].includes(order.status);
@@ -153,6 +162,16 @@ router.put('/:id/review', adminGuard, async function (req, res) {
             return res.status(404).send({ message: 'Yeu cau doi tra khong ton tai' });
         }
 
+        let beforeData = {
+            status: request.status,
+            approvedAmount: request.approvedAmount,
+            adminNote: request.adminNote,
+            refundTransactionId: request.refundTransactionId,
+            reviewedBy: request.reviewedBy,
+            reviewedAt: request.reviewedAt,
+            orderAfterSaleStatus: request.order?.afterSaleStatus
+        };
+
         if (request.status === 'Refunded' || request.status === 'Cancelled') {
             return res.status(400).send({ message: 'Yeu cau nay da ket thuc' });
         }
@@ -214,8 +233,45 @@ router.put('/:id/review', adminGuard, async function (req, res) {
             .populate('user', 'username email')
             .populate('reviewedBy', 'username');
 
+        await logAuditAction({
+            action: 'RETURN_REVIEW',
+            adminId: req.user?._id,
+            resourceType: 'returnRequest',
+            resourceId: request._id,
+            before: beforeData,
+            after: {
+                status: request.status,
+                approvedAmount: request.approvedAmount,
+                adminNote: request.adminNote,
+                refundTransactionId: request.refundTransactionId,
+                reviewedBy: request.reviewedBy,
+                reviewedAt: request.reviewedAt,
+                orderAfterSaleStatus: request.order?.afterSaleStatus
+            },
+            description: `Reviewed return request ${request._id}: ${status}`,
+            ipAddress: getClientIpAddress(req),
+            success: true
+        });
+
         return res.send({ message: 'Cap nhat yeu cau doi tra thanh cong', request: populated });
     } catch (error) {
+        await logAuditAction({
+            action: 'RETURN_REVIEW',
+            adminId: req.user?._id,
+            resourceType: 'returnRequest',
+            resourceId: safeResourceId(req.params?.id),
+            before: null,
+            after: {
+                status: req.body?.status,
+                approvedAmount: req.body?.approvedAmount,
+                adminNote: req.body?.adminNote
+            },
+            description: `Failed to review return request ${req.params?.id || 'Unknown'}`,
+            ipAddress: getClientIpAddress(req),
+            success: false,
+            errorMessage: error.message
+        });
+
         return res.status(400).send({ message: error.message });
     }
 });
