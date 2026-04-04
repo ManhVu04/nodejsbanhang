@@ -1,8 +1,6 @@
-const crypto = require('crypto');
-
 const isProduction = process.env.NODE_ENV === 'production';
 
-const devJwtSecret = crypto.randomBytes(32).toString('hex');
+const devJwtSecret = 'minishop_dev_jwt_secret_change_me';
 const jwtSecret = process.env.JWT_SECRET || (isProduction ? '' : devJwtSecret);
 
 if (!jwtSecret) {
