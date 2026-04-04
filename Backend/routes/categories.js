@@ -4,6 +4,7 @@ let slugify = require('slugify')
 let categorySchema = require('../schemas/categories');
 let productSchema = require('../schemas/products');
 let { CheckLogin, CheckRole } = require('../utils/authHandler')
+let { logAuditAction, getClientIpAddress } = require('../utils/auditHandler')
 
 const adminGuard = [CheckLogin, CheckRole(['Admin'])];
 
@@ -61,10 +62,32 @@ router.post('/', adminGuard, async function (req, res, next) {
         image: req.body.image
     })
     await newItem.save();
+    
+    // Log audit action
+    await logAuditAction({
+        action: 'CATEGORY_CREATE',
+        adminId: req.user._id,
+        resourceType: 'category',
+        resourceId: newItem._id,
+        before: null,
+        after: newItem.toObject(),
+        description: `Created category: ${newItem.name}`,
+        ipAddress: getClientIpAddress(req),
+        success: true
+    });
+    
     res.send(newItem)
 })
 router.put('/:id', adminGuard, async function (req, res, next) {
     try {
+        let originalItem = await categorySchema.findById(req.params.id);
+        if (!originalItem) {
+            return res.status(404).send({
+                message: "ID NOT FOUND"
+            });
+        }
+        
+        let originalData = originalItem.toObject();
         let updateData = { ...req.body };
         if (req.body.name) {
             updateData.slug = slugify(req.body.name, {
@@ -77,15 +100,22 @@ router.put('/:id', adminGuard, async function (req, res, next) {
         let getItem = await categorySchema.findByIdAndUpdate(
             req.params.id, updateData, {
             new: true
-        }
-        )
-        if (getItem) {
-            res.send(getItem)
-        } else {
-            res.status(404).send({
-                message: "ID NOT FOUND"
-            })
-        }
+        })
+        
+        // Log audit action
+        await logAuditAction({
+            action: 'CATEGORY_UPDATE',
+            adminId: req.user._id,
+            resourceType: 'category',
+            resourceId: getItem._id,
+            before: originalData,
+            after: getItem.toObject(),
+            description: `Updated category: ${getItem.name}`,
+            ipAddress: getClientIpAddress(req),
+            success: true
+        });
+        
+        res.send(getItem)
     } catch (error) {
         res.status(400).send(
             { message: error.message }
@@ -103,6 +133,8 @@ router.delete('/:id', adminGuard, async function (req, res, next) {
                 { message: "ID NOT FOUND" }
             )
         } else {
+            let categoryData = getItem.toObject();
+            
             await productSchema.updateMany(
                 {
                     isDeleted: false,
@@ -117,6 +149,20 @@ router.delete('/:id', adminGuard, async function (req, res, next) {
 
             getItem.isDeleted = true
             await getItem.save();
+            
+            // Log audit action
+            await logAuditAction({
+                action: 'CATEGORY_DELETE',
+                adminId: req.user._id,
+                resourceType: 'category',
+                resourceId: getItem._id,
+                before: categoryData,
+                after: { isDeleted: true },
+                description: `Deleted category: ${getItem.name}`,
+                ipAddress: getClientIpAddress(req),
+                success: true
+            });
+            
             res.send(getItem)
         }
 

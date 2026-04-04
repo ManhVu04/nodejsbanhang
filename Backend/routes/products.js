@@ -5,6 +5,7 @@ let productSchema = require('../schemas/products')
 let inventorySchema = require('../schemas/inventories')
 let mongoose = require('mongoose')
 let { CheckLogin, CheckRole } = require('../utils/authHandler')
+let { logAuditAction, getChangesDiff, getClientIpAddress } = require('../utils/auditHandler')
 
 const adminGuard = [CheckLogin, CheckRole(['Admin'])];
 
@@ -186,10 +187,39 @@ router.post('/', adminGuard, async (req, res) => {
         await newInventory.populate('product')
         await session.commitTransaction();
         await session.endSession()
+        
+        // Log audit action
+        await logAuditAction({
+            action: 'PRODUCT_CREATE',
+            adminId: req.user._id,
+            resourceType: 'product',
+            resourceId: newProducts._id,
+            before: null,
+            after: newProducts.toObject(),
+            description: `Created product: ${newProducts.title}`,
+            ipAddress: getClientIpAddress(req),
+            success: true
+        });
+        
         res.send(newInventory)
     } catch (error) {
         await session.abortTransaction();
         await session.endSession()
+        
+        // Log failed audit action
+        await logAuditAction({
+            action: 'PRODUCT_CREATE',
+            adminId: req.user._id,
+            resourceType: 'product',
+            resourceId: new mongoose.Types.ObjectId(),
+            before: null,
+            after: req.body,
+            description: `Failed to create product: ${req.body?.title || 'Unknown'}`,
+            ipAddress: getClientIpAddress(req),
+            success: false,
+            errorMessage: error.message
+        });
+        
         res.status(400).send({ message: error.message })
     }
 })
@@ -200,6 +230,7 @@ router.put('/:id', adminGuard, async (req, res) => {
             _id: req.params.id
         })
         if (result) {
+            let originalData = result.toObject();
             let keys = Object.keys(req.body);
             for (const key of keys) {
                 result[key] = req.body[key]
@@ -212,6 +243,35 @@ router.put('/:id', adminGuard, async (req, res) => {
                 });
             }
             await result.save();
+            
+            // Determine action type based on what was changed
+            let actionType = 'PRODUCT_UPDATE_INFO';
+            let fieldsTouched = [];
+            if (req.body.price !== undefined && req.body.price !== originalData.price) {
+                actionType = 'PRODUCT_UPDATE_PRICE';
+                fieldsTouched.push('price');
+            }
+            if (req.body.title !== undefined && req.body.title !== originalData.title) {
+                fieldsTouched.push('title');
+            }
+            if (req.body.description !== undefined && req.body.description !== originalData.description) {
+                fieldsTouched.push('description');
+            }
+            
+            // Log audit action
+            const changes = getChangesDiff(originalData, result.toObject(), Object.keys(req.body));
+            await logAuditAction({
+                action: actionType,
+                adminId: req.user._id,
+                resourceType: 'product',
+                resourceId: result._id,
+                before: originalData,
+                after: changes.after,
+                description: `Updated product "${result.title}": ${fieldsTouched.join(', ')}`,
+                ipAddress: getClientIpAddress(req),
+                success: true
+            });
+            
             res.send(result);
         } else {
             res.status(404).send({
@@ -231,8 +291,23 @@ router.delete('/:id', adminGuard, async (req, res) => {
             _id: req.params.id
         })
         if (result) {
+            let productData = result.toObject();
             result.isDeleted = true;
             await result.save();
+            
+            // Log audit action
+            await logAuditAction({
+                action: 'PRODUCT_DELETE',
+                adminId: req.user._id,
+                resourceType: 'product',
+                resourceId: result._id,
+                before: productData,
+                after: { isDeleted: true },
+                description: `Deleted product: ${result.title}`,
+                ipAddress: getClientIpAddress(req),
+                success: true
+            });
+            
             res.send(result);
         } else {
             res.status(404).send({

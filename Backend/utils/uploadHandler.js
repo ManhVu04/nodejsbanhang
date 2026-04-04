@@ -15,6 +15,7 @@ function parseMbLimit(value, fallbackMb) {
 
 let maxImageUploadSizeMb = parseMbLimit(process.env.MAX_IMAGE_UPLOAD_SIZE_MB, 10);
 let maxExcelUploadSizeMb = parseMbLimit(process.env.MAX_EXCEL_UPLOAD_SIZE_MB, 10);
+let maxVideoUploadSizeMb = parseMbLimit(process.env.MAX_VIDEO_UPLOAD_SIZE_MB, 100);
 
 let imageLimits = {
     fileSize: maxImageUploadSizeMb * 1024 * 1024
@@ -22,6 +23,10 @@ let imageLimits = {
 
 let excelLimits = {
     fileSize: maxExcelUploadSizeMb * 1024 * 1024
+};
+
+let videoLimits = {
+    fileSize: maxVideoUploadSizeMb * 1024 * 1024
 };
 
 //ghi vao dau? - ghi ten la gi->storage
@@ -50,6 +55,14 @@ let filterExcel = function (req, file, cb) {
         cb(new Error("dinh dang file khong dung "))
     }
 }
+let filterVideo = function (req, file, cb) {
+    const allowedVideoFormats = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+    if (allowedVideoFormats.includes(file.mimetype)) {
+        cb(null, true)
+    } else {
+        cb(new Error("dinh dang video khong dung (chi ho tro mp4, webm, ogg, quicktime)"))
+    }
+}
 module.exports = {
     uploadImage: multer({
         storage: storage,
@@ -61,6 +74,12 @@ module.exports = {
         limits: excelLimits,
         fileFilter: filterExcel
     }),
+    uploadVideo: multer({
+        storage: storage,
+        limits: videoLimits,
+        fileFilter: filterVideo
+    }),
     maxImageUploadSizeMb: maxImageUploadSizeMb,
-    maxExcelUploadSizeMb: maxExcelUploadSizeMb
+    maxExcelUploadSizeMb: maxExcelUploadSizeMb,
+    maxVideoUploadSizeMb: maxVideoUploadSizeMb
 }
