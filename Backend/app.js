@@ -7,6 +7,9 @@ let mongoose = require("mongoose");
 let cors = require("cors");
 let helmet = require("helmet");
 let { startReservationExpiryJob } = require("./utils/reservationExpiryJob");
+let {
+  startPendingVnpayOrderExpiryJob,
+} = require("./utils/pendingVnpayOrderExpiryJob");
 
 var indexRouter = require("./routes/index");
 var usersRouter = require("./routes/users");
@@ -135,6 +138,7 @@ connectMongo().catch((err) => {
 });
 
 startReservationExpiryJob();
+startPendingVnpayOrderExpiryJob();
 
 mongoose.connection.on("connected", function () {
   console.log("connected");

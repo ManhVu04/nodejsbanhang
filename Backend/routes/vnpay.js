@@ -6,6 +6,9 @@ let paymentModel = require('../schemas/payments');
 let crypto = require('crypto');
 let querystring = require('querystring');
 let { vnpayConfig } = require('../utils/appConfig');
+let {
+    cancelPendingVnpayOrderByPaymentId
+} = require('../utils/pendingVnpayOrderExpiryJob');
 
 function validateVNPayConfig() {
     if (!vnpayConfig.tmnCode || !vnpayConfig.hashSecret) {
@@ -114,22 +117,49 @@ router.get('/vnpay-return', async function (req, res) {
             // Payment success
             let payment = await paymentModel.findOne({ transactionId: txnRef });
             if (payment) {
-                if (payment.status !== 'refunded') {
+                let order = await orderModel.findById(payment.order);
+                let canMarkPaid =
+                    payment.status === 'pending' &&
+                    order &&
+                    order.status === 'Pending';
+
+                if (canMarkPaid) {
                     payment.status = 'paid';
                     payment.paidAt = payment.paidAt || new Date();
                 }
-                payment.providerResponse = vnpParams;
+
+                payment.providerResponse = {
+                    ...(payment.providerResponse || {}),
+                    ...vnpParams
+                };
                 await payment.save();
 
-                let order = await orderModel.findById(payment.order);
-                if (order && order.status === 'Pending') {
+                if (canMarkPaid) {
                     order.status = 'Paid';
                     await order.save();
+                    return res.send({ code: '00', message: 'Thanh toán thành công' });
+                }
+
+                return res.send({
+                    code: '24',
+                    message: 'Don hang da het han hoac da duoc xu ly truoc do'
+                });
+            }
+
+            return res.send({ code: '01', message: 'Khong tim thay giao dich thanh toan' });
+        } else {
+            if (secureHash === signed) {
+                let payment = await paymentModel.findOne({ transactionId: txnRef }).select('_id');
+                if (payment?._id) {
+                    await cancelPendingVnpayOrderByPaymentId(payment?._id, {
+                        cancelReason: `VNPay tra ve ma loi ${String(responseCode || 'unknown')}`,
+                        providerResponse: vnpParams,
+                        markPaymentFailed: true
+                    });
                 }
             }
-            res.send({ code: '00', message: 'Thanh toán thành công' });
-        } else {
-            res.send({ code: responseCode, message: 'Thanh toán thất bại' });
+
+            return res.send({ code: responseCode, message: 'Thanh toán thất bại' });
         }
     } catch (err) {
         res.status(400).send({ message: err.message });
@@ -168,22 +198,35 @@ router.get('/vnpay-ipn', async function (req, res) {
             }
 
             if (responseCode === '00') {
-                payment.status = 'paid';
-                payment.paidAt = payment.paidAt || new Date();
-                payment.providerResponse = vnpParams;
-                await payment.save();
-
                 let order = await orderModel.findById(payment.order);
-                if (order && order.status === 'Pending') {
+
+                if (payment.status === 'pending' && order && order.status === 'Pending') {
+                    payment.status = 'paid';
+                    payment.paidAt = payment.paidAt || new Date();
+                    payment.providerResponse = {
+                        ...(payment.providerResponse || {}),
+                        ...vnpParams
+                    };
+                    await payment.save();
+
                     order.status = 'Paid';
                     await order.save();
+                    return res.status(200).json({ RspCode: '00', Message: 'Success' });
                 }
 
-                return res.status(200).json({ RspCode: '00', Message: 'Success' });
-            } else {
-                payment.status = 'failed';
-                payment.providerResponse = vnpParams;
+                payment.providerResponse = {
+                    ...(payment.providerResponse || {}),
+                    ...vnpParams,
+                    lateSuccessIgnored: true
+                };
                 await payment.save();
+                return res.status(200).json({ RspCode: '02', Message: 'Already processed' });
+            } else {
+                await cancelPendingVnpayOrderByPaymentId(payment?._id, {
+                    cancelReason: `VNPay IPN tra ve ma loi ${String(responseCode || 'unknown')}`,
+                    providerResponse: vnpParams,
+                    markPaymentFailed: true
+                });
                 return res.status(200).json({ RspCode: '00', Message: 'Confirmed' });
             }
         } else {

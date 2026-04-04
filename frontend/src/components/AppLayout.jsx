@@ -12,12 +12,12 @@ const { Search } = Input;
 
 export default function AppLayout() {
     const { user } = useSelector(state => state.auth);
-    const { items } = useSelector(state => state.cart);
+    const { items, inactiveItems } = useSelector(state => state.cart);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [drawerOpen, setDrawerOpen] = useState(false);
 
-    const cartCount = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const cartCount = [...items, ...inactiveItems].reduce((sum, item) => sum + (item.quantity || 0), 0);
     const isAdmin = user?.role?.name === 'Admin';
     const avatarSrc = (typeof user?.avatarUrl === 'string' && user.avatarUrl.trim().length > 0)
         ? resolveImageUrl(user.avatarUrl)

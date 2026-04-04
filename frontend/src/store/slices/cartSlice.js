@@ -15,6 +15,24 @@ function saveGuestCart(items) {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
 }
 
+function getActiveProductsFromServerCart(serverCart) {
+    if (Array.isArray(serverCart?.activeProducts)) {
+        return serverCart.activeProducts;
+    }
+
+    return Array.isArray(serverCart?.products) ? serverCart.products : [];
+}
+
+function getInactiveProductsFromServerCart(serverCart) {
+    return Array.isArray(serverCart?.inactiveProducts) ? serverCart.inactiveProducts : [];
+}
+
+function applyServerCartToState(state, serverCart) {
+    state.serverCart = serverCart;
+    state.items = getActiveProductsFromServerCart(serverCart);
+    state.inactiveItems = getInactiveProductsFromServerCart(serverCart);
+}
+
 // Fetch cart from server
 export const fetchCart = createAsyncThunk('cart/fetch', async (_, { rejectWithValue }) => {
     try {
@@ -87,6 +105,7 @@ const cartSlice = createSlice({
     name: 'cart',
     initialState: {
         items: [], // For logged-in: server cart. For guest: local items [{productId, quantity, product?}]
+        inactiveItems: [],
         serverCart: null,
         loading: false,
         error: null
@@ -97,6 +116,7 @@ const cartSlice = createSlice({
         },
         clearCart: (state) => {
             state.items = [];
+            state.inactiveItems = [];
             state.serverCart = null;
             localStorage.removeItem(CART_STORAGE_KEY);
         }
@@ -104,13 +124,11 @@ const cartSlice = createSlice({
     extraReducers: (builder) => {
         builder
             .addCase(fetchCart.fulfilled, (state, action) => {
-                state.serverCart = action.payload;
-                state.items = action.payload?.products || [];
+                applyServerCartToState(state, action.payload);
                 state.loading = false;
             })
             .addCase(syncGuestCart.fulfilled, (state, action) => {
-                state.serverCart = action.payload;
-                state.items = action.payload?.products || [];
+                applyServerCartToState(state, action.payload);
                 state.loading = false;
             })
             .addCase(addToCart.fulfilled, (state, action) => {
@@ -124,9 +142,9 @@ const cartSlice = createSlice({
                     }
                     saveGuestCart(guestCart);
                     state.items = guestCart;
+                    state.inactiveItems = [];
                 } else {
-                    state.serverCart = action.payload.data;
-                    state.items = action.payload.data?.products || [];
+                    applyServerCartToState(state, action.payload.data);
                 }
             })
             .addCase(removeFromCart.fulfilled, (state, action) => {
@@ -135,9 +153,9 @@ const cartSlice = createSlice({
                     guestCart = guestCart.filter(i => i.productId !== action.payload.productId);
                     saveGuestCart(guestCart);
                     state.items = guestCart;
+                    state.inactiveItems = [];
                 } else {
-                    state.serverCart = action.payload.data;
-                    state.items = action.payload.data?.products || [];
+                    applyServerCartToState(state, action.payload.data);
                 }
             })
             .addCase(decreaseFromCart.fulfilled, (state, action) => {
@@ -153,9 +171,9 @@ const cartSlice = createSlice({
                     }
                     saveGuestCart(guestCart);
                     state.items = guestCart;
+                    state.inactiveItems = [];
                 } else {
-                    state.serverCart = action.payload.data;
-                    state.items = action.payload.data?.products || [];
+                    applyServerCartToState(state, action.payload.data);
                 }
             });
     }

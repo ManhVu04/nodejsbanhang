@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Row, Col, Typography, Button, Tag, Divider, Spin, message, Image, Card, Breadcrumb, Rate, List, Avatar, Form, Input, Empty, Pagination, Space } from 'antd';
 import { ShoppingCartOutlined, HomeOutlined, UserOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { addToCart } from '../store/slices/cartSlice';
+import { addToCart, fetchCart } from '../store/slices/cartSlice';
 import api, { resolveImageUrl } from '../utils/api';
 
 const { Title, Paragraph, Text } = Typography;
@@ -194,6 +194,24 @@ export default function ProductDetailPage() {
         }
     };
 
+    const setSelectedQuantityForBuyNow = async () => {
+        if (!product?._id) {
+            throw new Error('Sản phẩm không hợp lệ');
+        }
+        if (isOutOfStock) {
+            throw new Error('Sản phẩm hiện đã hết hàng');
+        }
+        if (quantity > availableStock) {
+            throw new Error('Số lượng bạn chọn vượt quá số lượng tồn kho');
+        }
+
+        await api.post('/carts/modify', {
+            product: product?._id,
+            quantity
+        });
+        await dispatch(fetchCart());
+    };
+
     const handleAddToCart = async () => {
         try {
             setActionLoading('cart');
@@ -207,9 +225,15 @@ export default function ProductDetailPage() {
     };
 
     const handleBuyNow = async () => {
+        if (!user?._id) {
+            message.info('Vui lòng đăng nhập để mua ngay');
+            navigate('/login');
+            return;
+        }
+
         try {
             setActionLoading('buyNow');
-            await addSelectedQuantityToCart();
+            await setSelectedQuantityForBuyNow();
             navigate('/checkout');
         } catch (err) {
             message.error(err?.message || err || 'Mua ngay thất bại');

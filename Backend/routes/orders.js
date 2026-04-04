@@ -47,6 +47,17 @@ function resolveShippingAddress(selectedAddress, rawShippingAddress) {
   return String(rawShippingAddress || "").trim();
 }
 
+function getAvailableStock(inventoryItem) {
+  return Math.max(
+    0,
+    Number(inventoryItem?.stock || 0) - Number(inventoryItem?.reserved || 0),
+  );
+}
+
+function getCartProductId(cartItem) {
+  return String(cartItem?.product || "").trim();
+}
+
 // POST / — Place order (transaction-based concurrency control)
 router.post("/", CheckLogin, async function (req, res) {
   let session = await mongoose.startSession();
@@ -94,26 +105,67 @@ router.post("/", CheckLogin, async function (req, res) {
     }
 
     // Get user's cart
-    let cart = await cartModel
-      .findOne({ user: user._id })
-      .populate("products.product");
+    let cart = await cartModel.findOne({ user: user._id }).session(session);
     if (!cart || cart.products.length === 0) {
       throw new Error("Giỏ hàng trống");
+    }
+
+    let cartProductIds = Array.from(
+      new Set(
+        (cart?.products || [])
+          .map((cartItem) => getCartProductId(cartItem))
+          .filter((productId) => mongoose.isValidObjectId(productId)),
+      ),
+    );
+
+    let [cartProducts, cartInventories] = await Promise.all([
+      productModel
+        .find({
+          _id: { $in: cartProductIds },
+        })
+        .session(session),
+      inventoryModel
+        .find({
+          product: { $in: cartProductIds },
+        })
+        .session(session),
+    ]);
+
+    let cartProductMap = new Map(
+      cartProducts.map((product) => [String(product?._id || ""), product]),
+    );
+    let cartInventoryMap = new Map(
+      cartInventories.map((inventory) => [String(inventory?.product || ""), inventory]),
+    );
+
+    let inactiveProductIds = new Set();
+    let activeCartItems = [];
+
+    for (let cartItem of cart?.products || []) {
+      let productId = getCartProductId(cartItem);
+      let product = cartProductMap.get(productId) || null;
+      let inventoryItem = cartInventoryMap.get(productId) || null;
+      let availableStock = getAvailableStock(inventoryItem);
+
+      if (!product || product?.isDeleted === true || availableStock < 1) {
+        inactiveProductIds.add(productId);
+        continue;
+      }
+
+      activeCartItems.push({ cartItem, product });
+    }
+
+    if (activeCartItems.length === 0) {
+      throw new Error("Gio hang khong co san pham kha dung de thanh toan");
     }
 
     let orderItems = [];
     let subTotalPrice = 0;
 
     // For each cart item: atomically deduct stock to prevent over-selling
-    for (let cartItem of cart.products) {
-      let product = await productModel.findById(
-        cartItem.product._id || cartItem.product,
-      );
-      if (!product || product.isDeleted) {
-        throw new Error(
-          `Sản phẩm "${cartItem.product.title || cartItem.product}" không tồn tại`,
-        );
-      }
+    for (let activeItem of activeCartItems) {
+      let cartItem = activeItem?.cartItem;
+      let product = activeItem?.product;
 
       let qty = cartItem.quantity;
 
@@ -228,8 +280,10 @@ router.post("/", CheckLogin, async function (req, res) {
       await appliedVoucher.save({ session });
     }
 
-    // Clear user's cart
-    cart.products = [];
+    // Keep unavailable items in cart and only clear checked-out active items.
+    cart.products = (cart?.products || []).filter((cartItem) =>
+      inactiveProductIds.has(getCartProductId(cartItem)),
+    );
     await cart.save({ session });
 
     await session.commitTransaction();
