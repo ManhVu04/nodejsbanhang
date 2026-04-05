@@ -1,0 +1,651 @@
+{
+  "info": {
+    "_postman_id": "8d3f4c1a-7d9a-4be2-9f95-6c3e7b8a12f1",
+    "name": "MiniShop CRUD Models (Category-Product-Cart-Address-Voucher)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection de test CRUD cho Category, Product, Cart, Address, Voucher. Chay theo thu tu folder."
+  },
+  "item": [
+    {
+      "name": "00 - Auth Setup",
+      "item": [
+        {
+          "name": "Auth - Register Test User",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = String(Date.now());",
+                  "pm.collectionVariables.set('runId', runId);",
+                  "pm.collectionVariables.set('testUsername', `cruduser${runId}`);",
+                  "pm.collectionVariables.set('testEmail', `crud${runId}@example.com`);",
+                  "pm.collectionVariables.set('testPassword', 'Abcd1234!');",
+                  "pm.collectionVariables.set('categoryName', `CRUD Category ${runId}`);",
+                  "pm.collectionVariables.set('categoryNameUpdated', `CRUD Category ${runId} Updated`);",
+                  "pm.collectionVariables.set('productTitle', `CRUD Product ${runId}`);",
+                  "pm.collectionVariables.set('productTitleUpdated', `CRUD Product ${runId} Updated`);",
+                  "pm.collectionVariables.set('productSku', `CRUDSKU${runId}`);",
+                  "pm.collectionVariables.set('voucherCodeDraft', `VT${runId}`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"CRUD Test User\",\n  \"username\": \"{{testUsername}}\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/register"
+          }
+        },
+        {
+          "name": "Auth - Login Test User (save userToken)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const token = pm.response.text().replace(/^\\\"|\\\"$/g, '').trim();",
+                  "pm.collectionVariables.set('userToken', token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{testUsername}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login"
+          }
+        },
+        {
+          "name": "Auth - Login Admin (save adminToken)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const token = pm.response.text().replace(/^\\\"|\\\"$/g, '').trim();",
+                  "pm.collectionVariables.set('adminToken', token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Category CRUD",
+      "item": [
+        {
+          "name": "Category - Create (save categoryId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && data._id) pm.collectionVariables.set('categoryId', data._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{categoryName}}\",\n  \"image\": \"category-crud.png\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/categories"
+          }
+        },
+        {
+          "name": "Category - List",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/categories"
+          }
+        },
+        {
+          "name": "Category - Get By Id",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/categories/{{categoryId}}"
+          }
+        },
+        {
+          "name": "Category - Update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{categoryNameUpdated}}\",\n  \"image\": \"category-crud-updated.png\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/categories/{{categoryId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Product CRUD",
+      "item": [
+        {
+          "name": "Product - Create (save productId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "const productId = data?.product?._id || data?.product || data?._id || data?.inventory?.product?._id || '';",
+                  "if (productId) pm.collectionVariables.set('productId', productId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"{{productTitle}}\",\n  \"description\": \"Product CRUD test\",\n  \"category\": \"{{categoryId}}\",\n  \"images\": [\"product-crud.png\"],\n  \"price\": 199000,\n  \"sku\": \"{{productSku}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/products"
+          }
+        },
+        {
+          "name": "Product - List",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/products"
+          }
+        },
+        {
+          "name": "Product - Get By Id",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/products/{{productId}}"
+          }
+        },
+        {
+          "name": "Product - Update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"{{productTitleUpdated}}\",\n  \"price\": 249000,\n  \"description\": \"Product CRUD updated\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/products/{{productId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Cart CRUD",
+      "item": [
+        {
+          "name": "Inventory - Add Stock (dependency for Cart)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 10,\n  \"reason\": \"Stock for cart CRUD test\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/inventories/{{productId}}/stock"
+          }
+        },
+        {
+          "name": "Cart - Create (Add Product)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product\": \"{{productId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/carts/add"
+          }
+        },
+        {
+          "name": "Cart - Read",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/carts"
+          }
+        },
+        {
+          "name": "Cart - Update (Modify Quantity)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product\": \"{{productId}}\",\n  \"quantity\": 2\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/carts/modify"
+          }
+        },
+        {
+          "name": "Cart - Delete (Remove Product)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product\": \"{{productId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/carts/remove"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Address CRUD",
+      "item": [
+        {
+          "name": "Address - Create (save addressId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data?.address?._id) pm.collectionVariables.set('addressId', data.address._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Nha rieng\",\n  \"recipientName\": \"CRUD User\",\n  \"phoneNumber\": \"0869727139\",\n  \"addressLine\": \"123 CRUD Street, District 1\",\n  \"isDefault\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/addresses"
+          }
+        },
+        {
+          "name": "Address - Read (List)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/addresses"
+          }
+        },
+        {
+          "name": "Address - Update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Van phong\",\n  \"recipientName\": \"CRUD User Updated\",\n  \"phoneNumber\": \"0987654321\",\n  \"addressLine\": \"456 CRUD Avenue, District 3\",\n  \"isDefault\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/addresses/{{addressId}}"
+          }
+        },
+        {
+          "name": "Address - Delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/addresses/{{addressId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Voucher CRUD",
+      "item": [
+        {
+          "name": "Voucher - Create (save voucherId + voucherCode)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && data._id) pm.collectionVariables.set('voucherId', data._id);",
+                  "if (data && data.code) pm.collectionVariables.set('voucherCode', data.code);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{voucherCodeDraft}}\",\n  \"description\": \"Voucher CRUD test\",\n  \"discountType\": \"PERCENT\",\n  \"discountValue\": 10,\n  \"minOrderValue\": 100000,\n  \"maxDiscount\": 50000,\n  \"usageLimit\": 100,\n  \"perUserLimit\": 1,\n  \"startsAt\": \"2026-04-01T00:00:00.000Z\",\n  \"expiresAt\": \"2026-12-31T23:59:59.000Z\",\n  \"isActive\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/vouchers"
+          }
+        },
+        {
+          "name": "Voucher - Read (List)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/vouchers"
+          }
+        },
+        {
+          "name": "Voucher - Validate",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/vouchers/validate/{{voucherCode}}?subtotal=500000"
+          }
+        },
+        {
+          "name": "Voucher - Update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Voucher CRUD updated\",\n  \"discountType\": \"FIXED\",\n  \"discountValue\": 25000,\n  \"isActive\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/vouchers/{{voucherId}}"
+          }
+        },
+        {
+          "name": "Voucher - Delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/vouchers/{{voucherId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "99 - Cleanup",
+      "item": [
+        {
+          "name": "Product - Delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{productId}}"
+          }
+        },
+        {
+          "name": "Category - Delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/categories/{{categoryId}}"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "adminUsername",
+      "value": "admin"
+    },
+    {
+      "key": "adminPassword",
+      "value": "Admin@123"
+    },
+    {
+      "key": "runId",
+      "value": ""
+    },
+    {
+      "key": "testUsername",
+      "value": ""
+    },
+    {
+      "key": "testEmail",
+      "value": ""
+    },
+    {
+      "key": "testPassword",
+      "value": "Abcd1234!"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "userToken",
+      "value": ""
+    },
+    {
+      "key": "categoryName",
+      "value": ""
+    },
+    {
+      "key": "categoryNameUpdated",
+      "value": ""
+    },
+    {
+      "key": "categoryId",
+      "value": ""
+    },
+    {
+      "key": "productTitle",
+      "value": ""
+    },
+    {
+      "key": "productTitleUpdated",
+      "value": ""
+    },
+    {
+      "key": "productSku",
+      "value": ""
+    },
+    {
+      "key": "productId",
+      "value": ""
+    },
+    {
+      "key": "addressId",
+      "value": ""
+    },
+    {
+      "key": "voucherCodeDraft",
+      "value": ""
+    },
+    {
+      "key": "voucherCode",
+      "value": ""
+    },
+    {
+      "key": "voucherId",
+      "value": ""
+    }
+  ]
+}

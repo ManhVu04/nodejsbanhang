@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Google Login Token Helper</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f8fb;
+        --card: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --border: #d1d5db;
+        --accent: #0f766e;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: radial-gradient(circle at top right, #e6fffa, var(--bg) 40%);
+        color: var(--text);
+      }
+
+      .wrap {
+        max-width: 880px;
+        margin: 32px auto;
+        padding: 0 16px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+      }
+
+      h1 {
+        margin-top: 0;
+        margin-bottom: 12px;
+        font-size: 24px;
+      }
+
+      p {
+        margin: 6px 0;
+        color: var(--muted);
+      }
+
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin: 14px 0;
+        flex-wrap: wrap;
+      }
+
+      input {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+
+      button {
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: #fff;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        background: #fff;
+        color: var(--accent);
+      }
+
+      pre {
+        background: #0b1220;
+        color: #dbeafe;
+        border-radius: 8px;
+        padding: 12px;
+        overflow-x: auto;
+        max-height: 280px;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 140px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 13px;
+        font-family: Consolas, "Courier New", monospace;
+      }
+
+      code {
+        background: #eef2ff;
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+
+      .ok {
+        color: #065f46;
+      }
+
+      .err {
+        color: #991b1b;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1>Google ID Token Helper</h1>
+        <p>
+          Trang nay giup ban dang nhap Google, copy ID token (<code>credential</code>)
+          va test nhanh endpoint <code>/api/v1/auth/google/login</code>.
+        </p>
+
+        <div class="row">
+          <label for="baseUrl"><strong>Base URL backend:</strong></label>
+          <input id="baseUrl" value="http://localhost:3000" />
+          <button id="loadConfigBtn" type="button">Load Google Config</button>
+        </div>
+
+        <p id="configStatus">Chua load config.</p>
+        <pre id="configOutput">{}</pre>
+
+        <div class="row">
+          <div id="g_id_signin"></div>
+        </div>
+
+        <p><strong>Credential (ID token):</strong></p>
+        <textarea id="credentialOutput" readonly></textarea>
+
+        <div class="row">
+          <button id="copyBtn" type="button" class="secondary">Copy credential</button>
+          <button id="callApiBtn" type="button">Call /api/v1/auth/google/login</button>
+        </div>
+
+        <p><strong>API response:</strong></p>
+        <pre id="apiOutput">(chua goi)</pre>
+      </div>
+    </div>
+
+    <script>
+      let loadedClientId = "";
+      let latestCredential = "";
+
+      const baseUrlInput = document.getElementById("baseUrl");
+      const configStatus = document.getElementById("configStatus");
+      const configOutput = document.getElementById("configOutput");
+      const credentialOutput = document.getElementById("credentialOutput");
+      const apiOutput = document.getElementById("apiOutput");
+      const loadConfigBtn = document.getElementById("loadConfigBtn");
+      const copyBtn = document.getElementById("copyBtn");
+      const callApiBtn = document.getElementById("callApiBtn");
+
+      function ensureGoogleScript() {
+        if (document.getElementById("google-gsi-script")) {
+          return;
+        }
+        const script = document.createElement("script");
+        script.id = "google-gsi-script";
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      }
+
+      function setStatus(message, type) {
+        configStatus.textContent = message;
+        configStatus.className = type || "";
+      }
+
+      function renderGoogleButton(clientId) {
+        const wait = () => {
+          if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+            setTimeout(wait, 120);
+            return;
+          }
+
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: (response) => {
+              latestCredential = response.credential || "";
+              credentialOutput.value = latestCredential;
+            }
+          });
+
+          const buttonHost = document.getElementById("g_id_signin");
+          buttonHost.innerHTML = "";
+          window.google.accounts.id.renderButton(buttonHost, {
+            theme: "outline",
+            size: "large",
+            shape: "pill",
+            text: "signin_with",
+            width: 280
+          });
+        };
+
+        wait();
+      }
+
+      async function loadGoogleConfig() {
+        const baseUrl = String(baseUrlInput.value || "").replace(/\/$/, "");
+        if (!baseUrl) {
+          setStatus("Base URL khong hop le", "err");
+          return;
+        }
+
+        setStatus("Dang load config...", "");
+        try {
+          const response = await fetch(baseUrl + "/api/v1/auth/google/config");
+          const data = await response.json();
+          configOutput.textContent = JSON.stringify(data, null, 2);
+
+          if (!response.ok) {
+            setStatus("Load config that bai", "err");
+            return;
+          }
+
+          if (!data.enabled || !data.clientId) {
+            setStatus("Google login chua duoc cau hinh tren backend", "err");
+            return;
+          }
+
+          loadedClientId = data.clientId;
+          setStatus("Da load clientId thanh cong", "ok");
+          ensureGoogleScript();
+          renderGoogleButton(loadedClientId);
+        } catch (error) {
+          setStatus("Loi khi goi /google/config: " + error.message, "err");
+        }
+      }
+
+      async function callGoogleLoginApi() {
+        const baseUrl = String(baseUrlInput.value || "").replace(/\/$/, "");
+        if (!latestCredential) {
+          apiOutput.textContent = "Chua co credential. Hay bam nut Google Login truoc.";
+          return;
+        }
+
+        apiOutput.textContent = "Dang goi API...";
+        try {
+          const response = await fetch(baseUrl + "/api/v1/auth/google/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ credential: latestCredential })
+          });
+
+          const text = await response.text();
+          apiOutput.textContent = JSON.stringify(
+            {
+              status: response.status,
+              ok: response.ok,
+              body: text
+            },
+            null,
+            2
+          );
+        } catch (error) {
+          apiOutput.textContent = "Loi khi goi API: " + error.message;
+        }
+      }
+
+      loadConfigBtn.addEventListener("click", loadGoogleConfig);
+      callApiBtn.addEventListener("click", callGoogleLoginApi);
+      copyBtn.addEventListener("click", async () => {
+        if (!latestCredential) {
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(latestCredential);
+          copyBtn.textContent = "Da copy";
+          setTimeout(() => {
+            copyBtn.textContent = "Copy credential";
+          }, 1200);
+        } catch (e) {
+          copyBtn.textContent = "Khong copy duoc";
+          setTimeout(() => {
+            copyBtn.textContent = "Copy credential";
+          }, 1200);
+        }
+      });
+    </script>
+  </body>
+</html>

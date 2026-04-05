@@ -16,6 +16,10 @@ function safeResourceId(rawId) {
     return new mongoose.Types.ObjectId();
 }
 
+function normalizeDiscountType(discountTypeValue) {
+    return String(discountTypeValue || '').trim().toUpperCase();
+}
+
 router.get('/validate/:code', async function (req, res) {
     try {
         let code = normalizeVoucherCode(req.params.code);
@@ -63,7 +67,7 @@ router.post('/', adminGuard, async function (req, res) {
         let payload = {
             code: normalizeVoucherCode(req.body.code),
             description: req.body.description || '',
-            discountType: req.body.discountType,
+            discountType: normalizeDiscountType(req.body.discountType),
             discountValue: Number(req.body.discountValue || 0),
             minOrderValue: Number(req.body.minOrderValue || 0),
             maxDiscount: req.body.maxDiscount === null || req.body.maxDiscount === undefined || req.body.maxDiscount === ''
@@ -155,6 +159,9 @@ router.put('/:id', adminGuard, async function (req, res) {
         let updateData = { ...req.body };
         if (typeof updateData.code === 'string') {
             updateData.code = normalizeVoucherCode(updateData.code);
+        }
+        if (updateData.discountType !== undefined) {
+            updateData.discountType = normalizeDiscountType(updateData.discountType);
         }
 
         let voucher = await voucherModel.findOneAndUpdate(
