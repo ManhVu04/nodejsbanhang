@@ -22,9 +22,7 @@ const userSchema = new mongoose.Schema(
 
     googleId: {
       type: String,
-      default: null,
-      unique: true,
-      sparse: true
+      trim: true
     },
 
     fullName: {
@@ -86,5 +84,16 @@ userSchema.pre('findOneAndUpdate', function () {
     this._update.password = bcrypt.hashSync(this._update.password, salt);
   }
 })
+
+// Keep googleId unique only for users that actually have a Google account linked.
+userSchema.index(
+  { googleId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      googleId: { $exists: true, $type: 'string' }
+    }
+  }
+);
 
 module.exports = mongoose.model("user", userSchema);

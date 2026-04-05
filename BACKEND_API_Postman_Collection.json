@@ -1,0 +1,620 @@
+{
+  "info": {
+    "_postman_id": "4d0e8b8e-2f2d-4f46-b8e7-8c88fc4f7f1a",
+    "name": "MiniShop Backend API - Ordered E2E",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection duoc sap xep dung thu tu test trong BACKEND_API_POSTMAN_GUIDE.md"
+  },
+  "item": [
+    {
+      "name": "01 - Auth",
+      "item": [
+        {
+          "name": "Auth - Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"user01\",\n  \"password\": \"Password@123\",\n  \"email\": \"user01@example.com\",\n  \"fullName\": \"User 01\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/register"
+          }
+        },
+        {
+          "name": "Auth - Login User (save userToken)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const token = pm.response.text();",
+                  "pm.environment.set('userToken', token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"user01\",\n  \"password\": \"Password@123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login"
+          }
+        },
+        {
+          "name": "Auth - Login Admin (save adminToken)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const token = pm.response.text();",
+                  "pm.environment.set('adminToken', token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"Admin@123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login"
+          }
+        },
+        {
+          "name": "Auth - Me (User)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Category",
+      "item": [
+        {
+          "name": "Category - Create (save categoryId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && data._id) pm.environment.set('categoryId', data._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Balo Nam\",\n  \"image\": \"sample-category.webp\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/categories"
+          }
+        },
+        {
+          "name": "Category - List",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/categories"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Product",
+      "item": [
+        {
+          "name": "Product - Create (save productId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "const pid = (data && data.product && data.product._id) ? data.product._id : (data && data._id ? data._id : '');",
+                  "if (pid) pm.environment.set('productId', pid);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Tui Deo Cheo A\",\n  \"description\": \"Mo ta san pham\",\n  \"category\": \"{{categoryId}}\",\n  \"images\": [\"sample-product.webp\"],\n  \"price\": 299000,\n  \"sku\": \"SKU-A-001\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/products"
+          }
+        },
+        {
+          "name": "Product - Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/products/{{productId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Inventory",
+      "item": [
+        {
+          "name": "Inventory - Add Stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 100,\n  \"reason\": \"Nhap kho dot 1\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/inventories/{{productId}}/stock"
+          }
+        },
+        {
+          "name": "Inventory - List",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/inventories?page=1&limit=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Cart",
+      "item": [
+        {
+          "name": "Cart - Add Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"product\": \"{{productId}}\"\n}" },
+            "url": "{{baseUrl}}/api/v1/carts/add"
+          }
+        },
+        {
+          "name": "Cart - Modify Quantity",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"product\": \"{{productId}}\",\n  \"quantity\": 2\n}" },
+            "url": "{{baseUrl}}/api/v1/carts/modify"
+          }
+        },
+        {
+          "name": "Cart - Get Current Cart",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/carts"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Address",
+      "item": [
+        {
+          "name": "Address - Create (save addressId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && data.address && data.address._id) pm.environment.set('addressId', data.address._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Nha rieng\",\n  \"recipientName\": \"Nguyen Van A\",\n  \"phoneNumber\": \"0869727139\",\n  \"addressLine\": \"123 duong A, quan B, thanh pho C\",\n  \"isDefault\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/addresses"
+          }
+        },
+        {
+          "name": "Address - List",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/addresses"
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Voucher",
+      "item": [
+        {
+          "name": "Voucher - Create (save voucherId + voucherCode)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && data._id) pm.environment.set('voucherId', data._id);",
+                  "if (data && data.code) pm.environment.set('voucherCode', data.code);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"SALE10\",\n  \"description\": \"Giam 10 phan tram\",\n  \"discountType\": \"PERCENT\",\n  \"discountValue\": 10,\n  \"minOrderValue\": 100000,\n  \"maxDiscount\": 50000,\n  \"usageLimit\": 100,\n  \"perUserLimit\": 1,\n  \"startsAt\": \"2026-04-01T00:00:00.000Z\",\n  \"expiresAt\": \"2026-12-31T23:59:59.000Z\",\n  \"isActive\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/vouchers"
+          }
+        },
+        {
+          "name": "Voucher - Validate",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/vouchers/validate/{{voucherCode}}?subtotal=299000"
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Order",
+      "item": [
+        {
+          "name": "Order - Create (save orderId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && data.order && data.order._id) pm.environment.set('orderId', data.order._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethod\": \"COD\",\n  \"shippingAddressId\": \"{{addressId}}\",\n  \"shippingAddress\": \"123 duong A, quan B\",\n  \"shippingPhoneNumber\": \"0869727139\",\n  \"note\": \"Giao gio hanh chinh\",\n  \"voucherCode\": \"{{voucherCode}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/orders"
+          }
+        },
+        {
+          "name": "Order - My Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Order - Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{orderId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - VNPay",
+      "item": [
+        {
+          "name": "VNPay - Create Payment URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/vnpay/create-payment-url"
+          }
+        },
+        {
+          "name": "VNPay - Return (manual query from VNPay)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/vnpay/vnpay-return"
+          }
+        },
+        {
+          "name": "VNPay - IPN (manual query from VNPay)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/vnpay/vnpay-ipn"
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Review + Wishlist + Return + Reservation + Product Media",
+      "item": [
+        {
+          "name": "Wishlist - Toggle Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/wishlists/{{productId}}"
+          }
+        },
+        {
+          "name": "Review - Create/Update",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"comment\": \"San pham tot\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/reviews/product/{{productId}}"
+          }
+        },
+        {
+          "name": "Return - Create Request (save returnRequestId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && data.request && data.request._id) pm.environment.set('returnRequestId', data.request._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"reason\": \"San pham loi\",\n  \"details\": \"Loi khoa keo\",\n  \"requestedAmount\": 100000\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/returns"
+          }
+        },
+        {
+          "name": "Return - Admin Review",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Approved\",\n  \"adminNote\": \"Dong y\",\n  \"approvedAmount\": 100000,\n  \"refundTransactionId\": \"\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/returns/{{returnRequestId}}/review"
+          }
+        },
+        {
+          "name": "Reservation - Reserve (save reservationId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && data.reservation && data.reservation._id) pm.environment.set('reservationId', data.reservation._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"productId\": \"{{productId}}\", \"quantity\": 1 }\n  ],\n  \"paymentMethod\": \"COD\",\n  \"shippingAddress\": \"123 duong A\",\n  \"note\": \"reserve test\",\n  \"idempotencyKey\": \"reserve-key-001\",\n  \"ttlMinutes\": 15\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/reservations/reserve"
+          }
+        },
+        {
+          "name": "Reservation - Release",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/reservations/{{reservationId}}/release"
+          }
+        },
+        {
+          "name": "Product Media - Upload (save mediaId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && data.media && data.media._id) pm.environment.set('mediaId', data.media._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" },
+                { "key": "mediaType", "value": "image", "type": "text" },
+                { "key": "altText", "value": "main image", "type": "text" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/product-media/upload/{{productId}}"
+          }
+        },
+        {
+          "name": "Product Media - Reorder",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mediaOrder\": [\n    { \"mediaId\": \"{{mediaId}}\", \"displayOrder\": 0 }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/product-media/reorder/{{productId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Dashboard + Audit Logs",
+      "item": [
+        {
+          "name": "Dashboard - Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/dashboard/summary"
+          }
+        },
+        {
+          "name": "Dashboard - Revenue",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/dashboard/revenue?period=day"
+          }
+        },
+        {
+          "name": "Audit Logs - List",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/audit-logs?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Audit Logs - Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/audit-logs/stats"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "userToken", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "categoryId", "value": "" },
+    { "key": "productId", "value": "" },
+    { "key": "addressId", "value": "" },
+    { "key": "voucherId", "value": "" },
+    { "key": "voucherCode", "value": "SALE10" },
+    { "key": "orderId", "value": "" },
+    { "key": "returnRequestId", "value": "" },
+    { "key": "reservationId", "value": "" },
+    { "key": "mediaId", "value": "" }
+  ]
+}

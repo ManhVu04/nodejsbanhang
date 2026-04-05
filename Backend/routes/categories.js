@@ -52,31 +52,54 @@ router.get('/:id/products', async (req, res) => {//req.params
     }
 })
 router.post('/', adminGuard, async function (req, res, next) {
-    let newItem = new categorySchema({
-        name: req.body.name,
-        slug: slugify(req.body.name, {
-            replacement: '-',
-            lower: false,
-            remove: undefined,
-        }),
-        image: req.body.image
-    })
-    await newItem.save();
-    
-    // Log audit action
-    await logAuditAction({
-        action: 'CATEGORY_CREATE',
-        adminId: req.user._id,
-        resourceType: 'category',
-        resourceId: newItem._id,
-        before: null,
-        after: newItem.toObject(),
-        description: `Created category: ${newItem.name}`,
-        ipAddress: getClientIpAddress(req),
-        success: true
-    });
-    
-    res.send(newItem)
+    try {
+        let newItem = new categorySchema({
+            name: req.body.name,
+            slug: slugify(req.body.name, {
+                replacement: '-',
+                lower: false,
+                remove: undefined,
+            }),
+            image: req.body.image
+        })
+        await newItem.save();
+
+        // Log audit action
+        await logAuditAction({
+            action: 'CATEGORY_CREATE',
+            adminId: req.user._id,
+            resourceType: 'category',
+            resourceId: newItem._id,
+            before: null,
+            after: newItem.toObject(),
+            description: `Created category: ${newItem.name}`,
+            ipAddress: getClientIpAddress(req),
+            success: true
+        });
+
+        res.send(newItem)
+    } catch (error) {
+        await logAuditAction({
+            action: 'CATEGORY_CREATE',
+            adminId: req.user?._id,
+            resourceType: 'category',
+            resourceId: null,
+            before: null,
+            after: req.body,
+            description: `Create category failed: ${String(req.body?.name || '')}`,
+            ipAddress: getClientIpAddress(req),
+            success: false,
+            errorMessage: error.message
+        }).catch(() => { })
+
+        if (error?.code === 10107 || error?.codeName === 'NotWritablePrimary') {
+            return res.status(503).send({
+                message: 'MongoDB dang chuyen primary, vui long thu lai sau vai giay'
+            })
+        }
+
+        res.status(400).send({ message: error.message })
+    }
 })
 router.put('/:id', adminGuard, async function (req, res, next) {
     try {
