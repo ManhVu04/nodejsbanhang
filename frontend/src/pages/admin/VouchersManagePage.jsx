@@ -109,9 +109,9 @@ export default function VouchersManagePage() {
             width: 90,
             render: (_, record) => (
                 <Space>
-                    <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+                    <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} aria-label={`Sửa voucher ${record?.code || ''}`} />
                     <Popconfirm title="Xoa voucher nay?" onConfirm={() => handleDelete(record._id)}>
-                        <Button size="small" danger icon={<DeleteOutlined />} />
+                        <Button size="small" danger icon={<DeleteOutlined />} aria-label={`Xóa voucher ${record?.code || ''}`} />
                     </Popconfirm>
                 </Space>
             )

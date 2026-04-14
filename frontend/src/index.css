@@ -147,7 +147,7 @@ a {
   background: var(--color-surface) !important;
   color: var(--color-text) !important;
   font-size: 14px !important;
-  transition: all var(--transition-fast) !important;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast) !important;
 }
 
 .quantity-btn:hover:not(:disabled) {
@@ -668,7 +668,7 @@ a {
 
 /* Enhanced button styles */
 .ant-btn {
-  transition: all var(--transition-fast) !important;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast) !important;
   font-weight: 600 !important;
 }
 
@@ -681,7 +681,7 @@ a {
   background: #1f1a17 !important;
   border: none !important;
   box-shadow: 0 8px 20px rgba(31, 26, 23, 0.24);
-  transition: all var(--transition-fast) !important;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast) !important;
 }
 
 .ant-btn-primary:hover {
@@ -701,7 +701,7 @@ a {
 
 /* Tag enhancements */
 .ant-tag {
-  transition: all var(--transition-fast) !important;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast) !important;
   font-weight: 500 !important;
 }
 
@@ -712,7 +712,7 @@ a {
 
 /* Popup menu enhancements */
 .ant-dropdown-menu-item {
-  transition: all var(--transition-fast) !important;
+  transition: background-color var(--transition-fast), color var(--transition-fast) !important;
 }
 
 .ant-dropdown-menu-item:hover {
@@ -722,7 +722,7 @@ a {
 
 /* Pagination enhancements */
 .ant-pagination-item {
-  transition: all var(--transition-fast) !important;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast) !important;
   border-color: var(--color-border) !important;
 }
 
@@ -753,7 +753,7 @@ a {
 .ant-select-selector,
 .ant-input-number,
 .ant-radio-wrapper {
-  transition: all 0.2s ease !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease !important;
 }
 
 .ant-btn-primary {
@@ -798,6 +798,29 @@ a {
   height: 100% !important;
   object-fit: cover !important;
   display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .home-hero__panel {
+    animation: none !important;
+  }
+
+  .product-card:hover .product-card__image,
+  .ant-btn:hover:not(.ant-btn-disabled),
+  .ant-card:hover,
+  .ant-card.hoverable:hover,
+  .home-hero__cta--primary.ant-btn-primary:hover {
+    transform: none !important;
+  }
 }
 
 @media (min-width: 768px) {

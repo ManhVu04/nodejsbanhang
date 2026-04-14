@@ -86,7 +86,7 @@ export default function InventoryManagePage() {
     const invColumns = [
         {
             title: 'Ảnh', width: 60,
-            render: (_, r) => <img alt={r?.product?.title || 'product'} src={resolveImageUrl(r?.product?.images?.[0])} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
+            render: (_, r) => <img alt={r?.product?.title || 'product'} src={resolveImageUrl(r?.product?.images?.[0])} width="40" height="40" loading="lazy" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
         },
         { title: 'Sản phẩm', render: (_, r) => r.product?.title || 'N/A' },
         { title: 'SKU', render: (_, r) => r.product?.sku || 'N/A', width: 100 },

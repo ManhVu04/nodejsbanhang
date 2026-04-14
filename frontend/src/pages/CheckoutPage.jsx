@@ -287,11 +287,20 @@ export default function CheckoutPage() {
               <Text strong>Số điện thoại giao hàng *</Text>
             </div>
             {isUsingSavedAddress ? (
-              <Input value={resolvedShippingPhoneNumber} disabled />
+              <Input
+                value={resolvedShippingPhoneNumber}
+                name="shippingPhoneNumber"
+                aria-label="Số điện thoại giao hàng"
+                disabled
+              />
             ) : (
               <Input
                 placeholder="Vi du: 0869727139"
                 value={shippingPhoneNumber}
+                name="shippingPhoneNumber"
+                autoComplete="tel"
+                inputMode="numeric"
+                aria-label="Số điện thoại giao hàng"
                 onChange={(event) =>
                   setShippingPhoneNumber(String(event?.target?.value || "").trim())
                 }
@@ -306,6 +315,7 @@ export default function CheckoutPage() {
                 <Select
                   value={selectedAddressId}
                   onChange={handleAddressSelection}
+                  aria-label="Địa chỉ giao hàng"
                   loading={addressesLoading}
                   style={{ width: "100%" }}
                   options={[
@@ -338,6 +348,9 @@ export default function CheckoutPage() {
                 <Input
                   placeholder="Nhập địa chỉ giao hàng"
                   value={shippingAddress}
+                  name="shippingAddress"
+                  autoComplete="street-address"
+                  aria-label="Địa chỉ giao hàng"
                   onChange={(e) => setShippingAddress(e.target.value)}
                 />
                 <div style={{ marginTop: 10 }}>
@@ -370,6 +383,8 @@ export default function CheckoutPage() {
             <TextArea
               rows={3}
               placeholder="Ghi chú cho đơn hàng (tùy chọn)"
+              name="note"
+              aria-label="Ghi chú đơn hàng"
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
@@ -442,6 +457,9 @@ export default function CheckoutPage() {
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <Input
                   value={voucherCode}
+                  name="voucherCode"
+                  autoComplete="off"
+                  aria-label="Mã giảm giá"
                   onChange={(event) =>
                     setVoucherCode(event.target.value.toUpperCase())
                   }

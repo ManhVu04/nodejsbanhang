@@ -153,11 +153,11 @@ export default function LoginPage() {
                 {error && <div style={{ color: '#ff4d4f', marginBottom: 16, textAlign: 'center' }}>{error}</div>}
 
                 <Form layout="vertical" onFinish={onFinish} size="large">
-                    <Form.Item name="username" rules={[{ required: true, message: 'Nhập tên đăng nhập' }]}>
-                        <Input prefix={<UserOutlined />} placeholder="Tên đăng nhập" />
+                    <Form.Item label="Tên đăng nhập" name="username" rules={[{ required: true, message: 'Nhập tên đăng nhập' }]}>
+                        <Input prefix={<UserOutlined />} placeholder="Tên đăng nhập" name="username" autoComplete="username" aria-label="Tên đăng nhập" />
                     </Form.Item>
-                    <Form.Item name="password" rules={[{ required: true, message: 'Nhập mật khẩu' }]}>
-                        <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu" />
+                    <Form.Item label="Mật khẩu" name="password" rules={[{ required: true, message: 'Nhập mật khẩu' }]}>
+                        <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu" name="password" autoComplete="current-password" aria-label="Mật khẩu" />
                     </Form.Item>
                     <Form.Item>
                         <Button type="primary" htmlType="submit" loading={loading} block

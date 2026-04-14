@@ -83,7 +83,7 @@ export default function CategoriesManagePage() {
     const columns = [
         {
             title: 'Ảnh', dataIndex: 'image', width: 70,
-            render: (img) => <img src={resolveImageUrl(img)} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />
+            render: (img, record) => <img src={resolveImageUrl(img)} alt={record?.name || 'category'} width="48" height="48" loading="lazy" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />
         },
         { title: 'Tên', dataIndex: 'name' },
         { title: 'Slug', dataIndex: 'slug', ellipsis: true },
@@ -91,9 +91,9 @@ export default function CategoriesManagePage() {
             title: '', key: 'actions', width: 100,
             render: (_, r) => (
                 <Space>
-                    <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+                    <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} aria-label={`Sửa danh mục ${r?.name || ''}`} />
                     <Popconfirm title="Xóa danh mục?" onConfirm={() => handleDelete(r._id)}>
-                        <Button size="small" danger icon={<DeleteOutlined />} />
+                        <Button size="small" danger icon={<DeleteOutlined />} aria-label={`Xóa danh mục ${r?.name || ''}`} />
                     </Popconfirm>
                 </Space>
             )

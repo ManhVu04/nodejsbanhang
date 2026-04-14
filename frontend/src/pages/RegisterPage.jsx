@@ -40,31 +40,32 @@ export default function RegisterPage() {
 
                 <Form layout="vertical" onFinish={onFinish} size="large">
                     <Form.Item
+                        label="Họ và tên"
                         name="fullName"
                         rules={[
                             { required: true, message: 'Nhập họ tên' },
                             { min: 2, message: 'Họ tên tối thiểu 2 ký tự' }
                         ]}
                     >
-                        <Input prefix={<IdcardOutlined />} placeholder="Họ và tên" />
+                        <Input prefix={<IdcardOutlined />} placeholder="Họ và tên" name="fullName" autoComplete="name" aria-label="Họ và tên" />
                     </Form.Item>
-                    <Form.Item name="username" rules={[{ required: true, message: 'Nhập tên đăng nhập' }, { min: 3, message: 'Tối thiểu 3 ký tự' }]}>
-                        <Input prefix={<UserOutlined />} placeholder="Tên đăng nhập" />
+                    <Form.Item label="Tên đăng nhập" name="username" rules={[{ required: true, message: 'Nhập tên đăng nhập' }, { min: 3, message: 'Tối thiểu 3 ký tự' }]}>
+                        <Input prefix={<UserOutlined />} placeholder="Tên đăng nhập" name="username" autoComplete="username" aria-label="Tên đăng nhập" />
                     </Form.Item>
-                    <Form.Item name="email" rules={[{ required: true, message: 'Nhập email' }, { type: 'email', message: 'Email không hợp lệ' }]}>
-                        <Input prefix={<MailOutlined />} placeholder="Email" />
+                    <Form.Item label="Email" name="email" rules={[{ required: true, message: 'Nhập email' }, { type: 'email', message: 'Email không hợp lệ' }]}>
+                        <Input prefix={<MailOutlined />} placeholder="Email" name="email" autoComplete="email" spellCheck={false} aria-label="Email" />
                     </Form.Item>
-                    <Form.Item name="password" rules={[
+                    <Form.Item label="Mật khẩu" name="password" rules={[
                         { required: true, message: 'Nhập mật khẩu' },
                         { min: 8, message: 'Tối thiểu 8 ký tự' },
                         { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/, message: 'Cần chữ hoa, chữ thường, số và ký tự đặc biệt' }
                     ]}>
-                        <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu" />
+                        <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu" name="password" autoComplete="new-password" aria-label="Mật khẩu" />
                     </Form.Item>
-                    <Form.Item name="confirmPassword" dependencies={['password']}
+                    <Form.Item label="Xác nhận mật khẩu" name="confirmPassword" dependencies={['password']}
                         rules={[{ required: true, message: 'Xác nhận mật khẩu' },
                         ({ getFieldValue }) => ({ validator(_, value) { if (!value || getFieldValue('password') === value) return Promise.resolve(); return Promise.reject('Mật khẩu không khớp'); } })]}>
-                        <Input.Password prefix={<LockOutlined />} placeholder="Xác nhận mật khẩu" />
+                        <Input.Password prefix={<LockOutlined />} placeholder="Xác nhận mật khẩu" name="confirmPassword" autoComplete="new-password" aria-label="Xác nhận mật khẩu" />
                     </Form.Item>
                     <Form.Item>
                         <Button type="primary" htmlType="submit" loading={loading} block

@@ -32,13 +32,14 @@ export default function ForgotPasswordPage() {
 
                 <Form layout="vertical" onFinish={onFinish} size="large">
                     <Form.Item
+                        label="Email"
                         name="email"
                         rules={[
                             { required: true, message: 'Nhập email' },
                             { type: 'email', message: 'Email không hợp lệ' }
                         ]}
                     >
-                        <Input prefix={<MailOutlined />} placeholder="Email" />
+                        <Input prefix={<MailOutlined />} placeholder="Email" name="email" autoComplete="email" spellCheck={false} aria-label="Email" />
                     </Form.Item>
                     <Form.Item>
                         <Button type="primary" htmlType="submit" loading={loading} block style={{ height: 44, borderRadius: 10, fontWeight: 700 }}>
