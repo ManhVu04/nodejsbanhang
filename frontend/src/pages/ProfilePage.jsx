@@ -304,11 +304,7 @@ export default function ProfilePage() {
       message.success("Đổi mật khẩu thành công!");
       passwordForm.resetFields();
     } catch (err) {
-      message.error(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Đổi mật khẩu thất bại",
-      );
+      message.error(err.response?.data || "Đổi mật khẩu thất bại");
     }
   };
 
