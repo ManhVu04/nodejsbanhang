@@ -30,7 +30,7 @@ module.exports = {
             if (req.cookies.LOGIN_NNPTUD_S3) {
                 key = req.cookies.LOGIN_NNPTUD_S3;
             } else {
-                res.status(401).send('ban chua dang nhap');
+                res.status(401).send({ message: 'ban chua dang nhap' });
                 return;
             }
         }
@@ -38,20 +38,20 @@ module.exports = {
         try {
             let result = jwt.verify(key, jwtSecret);
             if (result.exp * 1000 < Date.now()) {
-                res.status(401).send('ban chua dang nhap');
+                res.status(401).send({ message: 'ban chua dang nhap' });
                 return;
             }
 
             let user = await userController.GetUserById(result.id);
             if (!user) {
-                res.status(401).send('ban chua dang nhap');
+                res.status(401).send({ message: 'ban chua dang nhap' });
                 return;
             }
 
             req.user = user;
             next();
         } catch (error) {
-            res.status(401).send('ban chua dang nhap');
+            res.status(401).send({ message: 'ban chua dang nhap' });
         }
     },
     CheckRole: function (requiredRoles) {
@@ -64,7 +64,7 @@ module.exports = {
             if (hasRequiredRole(req.user, normalizedRoles)) {
                 next();
             } else {
-                res.status(403).send('ban khong co quyen');
+                res.status(403).send({ message: 'ban khong co quyen' });
             }
         };
     },

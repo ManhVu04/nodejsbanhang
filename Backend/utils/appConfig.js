@@ -1,7 +1,24 @@
+const crypto = require('crypto');
+
 const isProduction = process.env.NODE_ENV === 'production';
 
-const devJwtSecret = 'minishop_dev_jwt_secret_change_me';
-const jwtSecret = process.env.JWT_SECRET || (isProduction ? '' : devJwtSecret);
+function resolveJwtSecret() {
+    let configuredSecret = String(process.env.JWT_SECRET || '').trim();
+    if (configuredSecret) {
+        return configuredSecret;
+    }
+
+    if (isProduction) {
+        return '';
+    }
+
+    // Dev-only random fallback to avoid predictable hard-coded secrets.
+    let generatedSecret = crypto.randomBytes(48).toString('hex');
+    console.warn('[SECURITY] JWT_SECRET is not set. Using an ephemeral random secret for this process.');
+    return generatedSecret;
+}
+
+const jwtSecret = resolveJwtSecret();
 
 if (!jwtSecret) {
     throw new Error('JWT_SECRET is required in production environment');
