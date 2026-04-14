@@ -2,6 +2,7 @@ import { Button, Row, Col, Card, Typography } from 'antd';
 import { ShoppingOutlined, ThunderboltOutlined, SafetyCertificateOutlined, RocketOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import api, { resolveImageUrl } from '../utils/api';
 import ProductCard from '../components/ProductCard';
 
@@ -54,6 +55,20 @@ export default function HomePage() {
     ];
 
     return (
+        <>
+            <Helmet>
+                <title>MiniShop - Nền tảng thương mại điện tử đa kênh hiện đại</title>
+                <meta name="description" content="MiniShop - Nền tảng thương mại điện tử đa kênh hiện đại với hàng ngàn sản phẩm chất lượng, giao hàng nhanh và thanh toán an toàn." />
+                <meta name="keywords" content="thương mại điện tử, mua sắm trực tuyến, MiniShop, sản phẩm chất lượng, giao hàng nhanh" />
+                <meta property="og:title" content="MiniShop - Nền tảng thương mại điện tử đa kênh hiện đại" />
+                <meta property="og:description" content="MiniShop - Nền tảng thương mại điện tử đa kênh hiện đại với hàng ngàn sản phẩm chất lượng, giao hàng nhanh và thanh toán an toàn." />
+                <meta property="og:type" content="website" />
+                <meta property="og:url" content="https://minishop.example.com" />
+                <meta property="og:image" content="https://minishop.example.com/og-image.jpg" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content="MiniShop - Nền tảng thương mại điện tử đa kênh hiện đại" />
+                <meta name="twitter:description" content="MiniShop - Nền tảng thương mại điện tử đa kênh hiện đại với hàng ngàn sản phẩm chất lượng, giao hàng nhanh và thanh toán an toàn." />
+            </Helmet>
         <div className="home-page">
             <section className="home-hero">
                 <div className="page-container home-hero__inner">
@@ -142,6 +157,9 @@ export default function HomePage() {
                                         <img
                                             src={resolveImageUrl(categoryItem.image)}
                                             alt={categoryItem.name}
+                                            width="52"
+                                            height="52"
+                                            loading="lazy"
                                             className="category-pill__image"
                                         />
                                         <div className="category-pill__name">{categoryItem.name}</div>
@@ -169,5 +187,6 @@ export default function HomePage() {
                 </section>
             )}
         </div>
+        </>
     );
 }

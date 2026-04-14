@@ -116,7 +116,7 @@ export default function OrdersManagePage() {
         { title: 'Ngày', dataIndex: 'createdAt', width: 100, render: d => new Date(d).toLocaleDateString('vi-VN') },
         {
             title: '', width: 50,
-            render: (_, r) => <Link to={`/orders/${r._id}`}><Button size="small" icon={<EyeOutlined />} /></Link>
+            render: (_, r) => <Link to={`/orders/${r._id}`}><Button size="small" icon={<EyeOutlined />} aria-label={`Xem đơn hàng ${r?._id?.slice(-8) || ''}`} /></Link>
         }
     ];
 

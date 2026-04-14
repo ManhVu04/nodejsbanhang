@@ -42,6 +42,7 @@ export default function ResetPasswordPage() {
 
                 <Form layout="vertical" onFinish={onFinish} size="large">
                     <Form.Item
+                        label="Mật khẩu mới"
                         name="password"
                         rules={[
                             { required: true, message: 'Nhập mật khẩu mới' },
@@ -49,10 +50,11 @@ export default function ResetPasswordPage() {
                             { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/, message: 'Cần chữ hoa, chữ thường, số và ký tự đặc biệt' }
                         ]}
                     >
-                        <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu mới" />
+                        <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu mới" name="password" autoComplete="new-password" aria-label="Mật khẩu mới" />
                     </Form.Item>
 
                     <Form.Item
+                        label="Xác nhận mật khẩu"
                         name="confirmPassword"
                         dependencies={['password']}
                         rules={[
@@ -67,7 +69,7 @@ export default function ResetPasswordPage() {
                             })
                         ]}
                     >
-                        <Input.Password prefix={<LockOutlined />} placeholder="Xác nhận mật khẩu" />
+                        <Input.Password prefix={<LockOutlined />} placeholder="Xác nhận mật khẩu" name="confirmPassword" autoComplete="new-password" aria-label="Xác nhận mật khẩu" />
                     </Form.Item>
 
                     <Form.Item>

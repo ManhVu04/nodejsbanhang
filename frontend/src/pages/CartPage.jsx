@@ -52,7 +52,10 @@ export default function CartPage() {
             <Space style={{ opacity: isInactive ? 0.65 : 1 }}>
                 <img
                     src={resolveImageUrl(product?.images?.[0])}
-                    alt=""
+                    alt={title}
+                    width="60"
+                    height="60"
+                    loading="lazy"
                     style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8 }}
                 />
                 <div>
@@ -82,10 +85,12 @@ export default function CartPage() {
             render: (_, record) => (
                 <Space>
                     <Button size="small" icon={<MinusOutlined />}
+                        aria-label="Giảm số lượng"
                         onClick={() => dispatch(decreaseFromCart({ productId: getProductId(record) }))}
                         className="quantity-btn" />
                     <span style={{ fontWeight: 600, minWidth: 30, textAlign: 'center', display: 'inline-block' }}>{record.quantity}</span>
                     <Button size="small" icon={<PlusOutlined />}
+                        aria-label="Tăng số lượng"
                         disabled={Number(record?.availableStock || 0) <= Number(record?.quantity || 0)}
                         onClick={() => dispatch(addToCart({ productId: getProductId(record) }))}
                         className="quantity-btn" />
@@ -104,7 +109,7 @@ export default function CartPage() {
             title: '', key: 'action', width: 60,
             render: (_, record) => (
                 <Popconfirm title="Xóa sản phẩm này?" onConfirm={() => dispatch(removeFromCart({ productId: getProductId(record) }))}>
-                    <Button danger size="small" icon={<DeleteOutlined />} />
+                    <Button danger size="small" icon={<DeleteOutlined />} aria-label="Xóa sản phẩm" />
                 </Popconfirm>
             )
         }
@@ -131,7 +136,7 @@ export default function CartPage() {
             title: '', key: 'action', width: 80,
             render: (_, record) => (
                 <Popconfirm title="Xóa sản phẩm này?" onConfirm={() => dispatch(removeFromCart({ productId: getProductId(record) }))}>
-                    <Button danger size="small" icon={<DeleteOutlined />} />
+                    <Button danger size="small" icon={<DeleteOutlined />} aria-label="Xóa sản phẩm" />
                 </Popconfirm>
             )
         }

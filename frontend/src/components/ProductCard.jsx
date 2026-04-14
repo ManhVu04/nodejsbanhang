@@ -92,6 +92,8 @@ export default function ProductCard({ product }) {
                         <img
                             alt={product.title}
                             src={imageUrl}
+                            width="640"
+                            height="480"
                             className="product-card__image"
                             loading="lazy"
                         />
@@ -127,6 +129,8 @@ export default function ProductCard({ product }) {
                                             <img
                                                 src={resolveImageUrl(thumbItem?.filePath)}
                                                 alt={product?.title}
+                                                width="74"
+                                                height="74"
                                                 loading="lazy"
                                             />
                                         </button>

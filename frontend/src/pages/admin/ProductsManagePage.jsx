@@ -263,7 +263,7 @@ export default function ProductsManagePage() {
     const columns = [
         {
             title: 'Ảnh', dataIndex: 'images', width: 70,
-            render: (imgs) => <img src={resolveImageUrl(imgs?.[0])} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />
+            render: (imgs, record) => <img src={resolveImageUrl(imgs?.[0])} alt={record?.title || 'product'} width="48" height="48" loading="lazy" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />
         },
         { title: 'Tên', dataIndex: 'title', ellipsis: true },
         { title: 'SKU', dataIndex: 'sku', width: 100 },
@@ -281,9 +281,9 @@ export default function ProductsManagePage() {
             title: '', key: 'actions', width: 100,
             render: (_, r) => (
                 <Space>
-                    <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+                    <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} aria-label={`Sửa sản phẩm ${r?.title || ''}`} />
                     <Popconfirm title="Xóa sản phẩm?" onConfirm={() => handleDelete(r._id)}>
-                        <Button size="small" danger icon={<DeleteOutlined />} />
+                        <Button size="small" danger icon={<DeleteOutlined />} aria-label={`Xóa sản phẩm ${r?.title || ''}`} />
                     </Popconfirm>
                 </Space>
             )

@@ -1,10 +1,11 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import { Row, Col, Typography, Button, Tag, Divider, Spin, message, Image, Card, Breadcrumb, Rate, List, Avatar, Form, Input, Empty, Pagination, Space } from 'antd';
 import { ShoppingCartOutlined, HomeOutlined, UserOutlined } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { addToCart, fetchCart } from '../store/slices/cartSlice';
 import api, { resolveImageUrl, resolveUploadUrl } from '../utils/api';
+import { Helmet } from 'react-helmet-async';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -417,10 +418,24 @@ export default function ProductDetailPage() {
     ];
 
     return (
-        <section className="product-detail" aria-label="Chi tiết sản phẩm">
+        <>
+            <Helmet>
+                <title>{product?.title} - MiniShop</title>
+                <meta name="description" content={product?.description?.substring(0, 160) || 'MiniShop - Nền tảng thương mại điện tử đa kênh hiện đại'} />
+                <meta property="og:title" content={`${product?.title} - MiniShop`} />
+                <meta property="og:description" content={product?.description?.substring(0, 200) || 'MiniShop - Nền tảng thương mại điện tử đa kênh hiện đại'} />
+                <meta property="og:type" content="product" />
+                <meta property="og:url" content={`https://minishop.example.com/products/${id}`} />
+                <meta property="og:image" content={productMediaItems[0]?.filePath ? resolveUploadUrl(productMediaItems[0]?.filePath) : 'https://minishop.example.com/og-image.jpg'} />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content={`${product?.title} - MiniShop`} />
+                <meta name="twitter:description" content={product?.description?.substring(0, 200) || 'MiniShop - Nền tảng thương mại điện tử đa kênh hiện đại'} />
+            </Helmet>
+
+            <section className="product-detail" aria-label="Chi tiết sản phẩm">
             <Breadcrumb style={{ marginBottom: 16 }} items={[
-                { title: <a onClick={() => navigate('/')}><HomeOutlined /> Trang chủ</a> },
-                { title: <a onClick={() => navigate('/products')}>Sản phẩm</a> },
+                { title: <Link to="/"><HomeOutlined /> Trang chủ</Link> },
+                { title: <Link to="/products">Sản phẩm</Link> },
                 { title: product?.title }
             ]} />
 
@@ -481,6 +496,9 @@ export default function ProductDetailPage() {
                                                     <img
                                                         src={resolveImageUrl(mediaItem?.filePath)}
                                                         alt={mediaItem?.fileName || product?.title}
+                                                        width="74"
+                                                        height="74"
+                                                        loading="lazy"
                                                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                                     />
                                                 )}
@@ -525,13 +543,16 @@ export default function ProductDetailPage() {
                                         <input
                                             value={quantity}
                                             onChange={handleQuantityInputChange}
+                                            name="quantity"
+                                            aria-label="Số lượng sản phẩm"
+                                            autoComplete="off"
+                                            inputMode="numeric"
                                             style={{
                                                 width: 64,
                                                 height: 44,
                                                 border: 'none',
                                                 borderInline: '1px solid #d9d9d9',
                                                 textAlign: 'center',
-                                                outline: 'none',
                                                 fontWeight: 600
                                             }}
                                             disabled={isOutOfStock}
@@ -716,6 +737,7 @@ export default function ProductDetailPage() {
                     </>
                 )}
             </Card>
-        </section>
+            </section>
+        </>
     );
 }

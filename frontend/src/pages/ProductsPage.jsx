@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../utils/api';
 import ProductCard from '../components/ProductCard';
+import { Helmet } from 'react-helmet-async';
 
 const { Search } = Input;
 const { Title } = Typography;
