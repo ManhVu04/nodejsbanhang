@@ -83,7 +83,9 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         const status = error.response?.status;
-        const message = error.response?.data;
+        const message =
+            error.response?.data?.message ||
+            (typeof error.response?.data === 'string' ? error.response.data : '');
         if ((status === 401 || status === 404) && message === 'ban chua dang nhap') {
             localStorage.removeItem('token');
             localStorage.removeItem('user');

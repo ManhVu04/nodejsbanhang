@@ -148,7 +148,6 @@ app.use("/api/v1/addresses", require("./routes/addresses"));
 app.use("/api/v1/audit-logs", require("./routes/auditLogs"));
 
 const isProduction = process.env.NODE_ENV === "production";
-mongoose.set("sanitizeFilter", true);
 const configuredMongoUri = (process.env.MONGODB_URI || "").trim();
 const devMongoFallbackReplicaSetUris = [
   "mongodb://127.0.0.1:27017,127.0.0.1:27018,127.0.0.1:27019/nodejs?replicaSet=rs0&readPreference=primary&retryWrites=true&w=majority",

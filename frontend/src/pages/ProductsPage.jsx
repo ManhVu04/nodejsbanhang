@@ -82,12 +82,17 @@ export default function ProductsPage() {
     };
 
     return (
-        <section className="page-container" aria-label="Danh sách sản phẩm">
-            <Title level={3} style={{ marginBottom: 24 }}>
-                {q ? `Kết quả tìm kiếm: "${q}"` : 'Tất cả sản phẩm'}
-            </Title>
+        <section className="page-container products-page" aria-label="Danh sách sản phẩm">
+            <div className="products-page__head">
+                <Title level={3} className="products-page__title">
+                    {q ? `Kết quả tìm kiếm: "${q}"` : 'Tất cả sản phẩm'}
+                </Title>
+                <div className="products-page__meta">
+                    {!loading ? `${total} sản phẩm` : 'Đang tải dữ liệu...'}
+                </div>
+            </div>
 
-            <Card className="surface-card" style={{ marginBottom: 24, borderRadius: 12 }} bodyStyle={{ padding: '16px 20px' }}>
+            <Card className="surface-card products-filter-panel" bodyStyle={{ padding: '16px 20px' }}>
                 <Row gutter={[16, 12]} align="middle">
                     <Col xs={24} md={8}>
                         <Search
@@ -149,7 +154,7 @@ export default function ProductsPage() {
             </Spin>
 
             {total > 12 && (
-                <div style={{ textAlign: 'center', marginTop: 32 }}>
+                <div className="products-page__pagination">
                     <Pagination current={page} total={total} pageSize={12} onChange={handlePageChange} showTotal={(t) => `${t} sản phẩm`} />
                 </div>
             )}

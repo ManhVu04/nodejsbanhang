@@ -82,11 +82,13 @@ export default function CartPage() {
             render: (_, record) => (
                 <Space>
                     <Button size="small" icon={<MinusOutlined />}
-                        onClick={() => dispatch(decreaseFromCart({ productId: getProductId(record) }))} />
+                        onClick={() => dispatch(decreaseFromCart({ productId: getProductId(record) }))}
+                        className="quantity-btn" />
                     <span style={{ fontWeight: 600, minWidth: 30, textAlign: 'center', display: 'inline-block' }}>{record.quantity}</span>
                     <Button size="small" icon={<PlusOutlined />}
                         disabled={Number(record?.availableStock || 0) <= Number(record?.quantity || 0)}
-                        onClick={() => dispatch(addToCart({ productId: getProductId(record) }))} />
+                        onClick={() => dispatch(addToCart({ productId: getProductId(record) }))}
+                        className="quantity-btn" />
                 </Space>
             )
         },
@@ -136,11 +138,11 @@ export default function CartPage() {
     ];
 
     return (
-        <section className="page-container" style={{ maxWidth: 920 }} aria-label="Giỏ hàng">
-            <Title level={3}>🛒 Giỏ hàng ({totalCartItemGroups} sản phẩm)</Title>
+        <section className="page-container cart-page" aria-label="Giỏ hàng">
+            <Title level={3} className="cart-page__title">Giỏ hàng ({totalCartItemGroups} sản phẩm)</Title>
 
             {totalCartItemGroups === 0 ? (
-                <Card className="surface-card" style={{ textAlign: 'center', borderRadius: 12, padding: 40 }}>
+                <Card className="surface-card cart-page__empty">
                     <Empty description="Giỏ hàng trống" />
                     <Link to="/products">
                         <Button type="primary" icon={<ShoppingOutlined />} style={{ marginTop: 16, borderRadius: 10 }}>
@@ -151,12 +153,12 @@ export default function CartPage() {
             ) : (
                 <>
                     {items.length > 0 ? (
-                        <Card className="surface-card" style={{ borderRadius: 12, marginBottom: 16 }} title="Sản phẩm hoạt động">
+                        <Card className="surface-card cart-page__table-card" title="Sản phẩm hoạt động">
                             <Table dataSource={items} columns={activeColumns} pagination={false}
                                 rowKey={(r) => getProductId(r)} />
                         </Card>
                     ) : (
-                        <Card className="surface-card" style={{ borderRadius: 12, marginBottom: 16 }}>
+                        <Card className="surface-card cart-page__table-card">
                             <Alert
                                 type="warning"
                                 showIcon
@@ -167,7 +169,7 @@ export default function CartPage() {
                     )}
 
                     {inactiveItems.length > 0 ? (
-                        <Card className="surface-card" style={{ borderRadius: 12, marginBottom: 16 }} title="Danh sách sản phẩm không hoạt động">
+                        <Card className="surface-card cart-page__table-card" title="Danh sách sản phẩm không hoạt động">
                             <Table
                                 dataSource={inactiveItems}
                                 columns={inactiveColumns}
@@ -177,9 +179,9 @@ export default function CartPage() {
                         </Card>
                     ) : null}
 
-                    <Card className="surface-card" style={{ borderRadius: 12 }} bodyStyle={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <Card className="surface-card cart-page__summary" bodyStyle={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                         <Title level={4} style={{ margin: 0 }}>
-                            Tổng: <span style={{ color: '#e74c3c' }}>{getTotal().toLocaleString('vi-VN')}đ</span>
+                            Tổng: <span className="cart-page__total-value">{getTotal().toLocaleString('vi-VN')}đ</span>
                         </Title>
                         <Button type="primary" size="large"
                             disabled={items.length === 0}
