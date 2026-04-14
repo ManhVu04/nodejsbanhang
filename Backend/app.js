@@ -7,6 +7,8 @@ var logger = require("morgan");
 let mongoose = require("mongoose");
 let cors = require("cors");
 let helmet = require("helmet");
+let rateLimit = require("express-rate-limit");
+let mongoSanitize = require("express-mongo-sanitize");
 let { startReservationExpiryJob } = require("./utils/reservationExpiryJob");
 let {
   startPendingVnpayOrderExpiryJob,
@@ -17,10 +19,68 @@ var usersRouter = require("./routes/users");
 
 var app = express();
 
-const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173")
+function extractOrigin(urlValue) {
+  try {
+    return new URL(String(urlValue || "").trim()).origin;
+  } catch (error) {
+    return "";
+  }
+}
+
+const configuredCorsOrigins = String(process.env.CORS_ORIGIN || "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+const frontendUrlForCors = process.env.FRONTEND_URL || "http://localhost:5173/shop";
+const frontendOriginForCors = extractOrigin(frontendUrlForCors);
+
+let allowedOrigins = [...new Set([...configuredCorsOrigins, frontendOriginForCors])].filter(Boolean);
+if (allowedOrigins.length === 0) {
+  allowedOrigins = ["http://localhost:5173"];
+}
+
+function parsePositiveInt(value, fallback) {
+  let parsed = Number.parseInt(String(value || ""), 10);
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+const globalRateLimitWindowMs = parsePositiveInt(
+  process.env.RATE_LIMIT_WINDOW_MS,
+  15 * 60 * 1000,
+);
+const globalRateLimitMax = parsePositiveInt(process.env.RATE_LIMIT_MAX, 300);
+
+const authRateLimitWindowMs = parsePositiveInt(
+  process.env.AUTH_RATE_LIMIT_WINDOW_MS,
+  15 * 60 * 1000,
+);
+const authRateLimitMax = parsePositiveInt(process.env.AUTH_RATE_LIMIT_MAX, 10);
+
+const globalApiRateLimiter = rateLimit({
+  windowMs: globalRateLimitWindowMs,
+  limit: globalRateLimitMax,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    message: "Qua nhieu yeu cau, vui long thu lai sau",
+  },
+});
+
+const authApiRateLimiter = rateLimit({
+  windowMs: authRateLimitWindowMs,
+  limit: authRateLimitMax,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: {
+    message: "Qua nhieu lan thu dang nhap, vui long thu lai sau",
+  },
+});
 
 // Security & CORS
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -44,6 +104,11 @@ app.set("view engine", "ejs");
 app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(
+  mongoSanitize({
+    replaceWith: "_",
+  }),
+);
 app.use(cookieParser());
 
 app.get("/google-login-token-helper.html", function (req, res) {
@@ -52,6 +117,13 @@ app.get("/google-login-token-helper.html", function (req, res) {
 });
 
 app.use(express.static(path.join(__dirname, "public")));
+
+// Global API rate limiting + stricter auth endpoint protection.
+app.use("/api/", globalApiRateLimiter);
+app.use("/api/v1/auth/login", authApiRateLimiter);
+app.use("/api/v1/auth/google/login", authApiRateLimiter);
+app.use("/api/v1/auth/forgotpassword", authApiRateLimiter);
+app.use("/api/v1/auth/resetpassword", authApiRateLimiter);
 
 // Routes
 app.use("/", indexRouter);
@@ -76,6 +148,7 @@ app.use("/api/v1/addresses", require("./routes/addresses"));
 app.use("/api/v1/audit-logs", require("./routes/auditLogs"));
 
 const isProduction = process.env.NODE_ENV === "production";
+mongoose.set("sanitizeFilter", true);
 const configuredMongoUri = (process.env.MONGODB_URI || "").trim();
 const devMongoFallbackReplicaSetUris = [
   "mongodb://127.0.0.1:27017,127.0.0.1:27018,127.0.0.1:27019/nodejs?replicaSet=rs0&readPreference=primary&retryWrites=true&w=majority",

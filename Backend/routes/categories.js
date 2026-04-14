@@ -46,7 +46,7 @@ router.get('/:id/products', async (req, res) => {//req.params
         }
     ).populate('products')
     if (!filterData) {
-        res.status(404).send("id khong hop le")
+        res.status(404).send({ message: "id khong hop le" })
     } else {
         res.send(filterData.products)
     }

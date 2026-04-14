@@ -81,14 +81,14 @@ async function resetPasswordWithToken(token, password, res) {
 
     let user = await userController.FindUserByToken(token);
     if (!user) {
-        return res.status(400).send('token loi');
+        return res.status(400).send({ message: 'token loi' });
     }
 
     user.password = password;
     user.forgotPasswordToken = null;
     user.forgotPasswordTokenExp = null;
     await user.save();
-    return res.send('da cap nhat');
+    return res.send({ message: 'da cap nhat' });
 }
 
 
@@ -131,16 +131,16 @@ router.post('/login', async function (req, res, next) {
         let { username, password } = req.body;
         let result = await userController.FindUserByUsername(username);
         if (!result) {
-            res.status(403).send("sai thong tin dang nhap");
+            res.status(403).send({ message: "sai thong tin dang nhap" });
             return;
         }
-        if (result.lockTime > Date.now()) {
-            res.status(404).send("ban dang bi ban");
+        if (result.lockTime && result.lockTime > Date.now()) {
+            res.status(404).send({ message: "ban dang bi ban" });
             return;
         }
         result = await userController.CompareLogin(result, password);
         if (!result) {
-            res.status(403).send("sai thong tin dang nhap");
+            res.status(403).send({ message: "sai thong tin dang nhap" });
             return;
         }
         let token = jwt.sign({
@@ -240,7 +240,7 @@ router.post('/google/login', async function (req, res) {
                 await session.endSession();
             }
         } else {
-            if (user.lockTime > Date.now()) {
+            if (user.lockTime && user.lockTime > Date.now()) {
                 return res.status(403).send({ message: 'ban dang bi ban' });
             }
 
@@ -276,7 +276,7 @@ router.get('/me', CheckLogin, function (req, res, next) {
 })
 router.post('/logout', CheckLogin, function (req, res, next) {
     res.cookie("LOGIN_NNPTUD_S3", "", buildAuthCookieOptions(0))
-    res.send("da logout ")
+    res.send({ message: "da logout" })
 })
 router.post('/changepassword', CheckLogin,
     ChangPasswordValidator, validationResult
@@ -286,9 +286,9 @@ router.post('/changepassword', CheckLogin,
         if (bcrypt.compareSync(oldpassword, user.password)) {
             user.password = newpassword;
             await user.save();
-            res.send("doi pass thanh cong")
+            res.send({ message: "doi pass thanh cong" })
         } else {
-            res.status(400).send("old password khong dung")
+            res.status(400).send({ message: "old password khong dung" })
         }
     })
 
@@ -309,7 +309,7 @@ router.post('/forgotpassword', async function (req, res, next) {
         }
 
         // Always return the same message to avoid account enumeration.
-        res.send('check email')
+        res.send({ message: 'check email' })
     } catch (err) {
         res.status(400).send({ message: err.message });
     }
