@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Card, Table, Button, Modal, Form, Input, InputNumber, Select, Switch, Space, Popconfirm, Typography, message, Tag, DatePicker } from 'antd';
+import { Card, Table, Button, Modal, Form, Input, InputNumber, Select, Switch, Space, Popconfirm, message, Tag, DatePicker } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import api from '../../utils/api';
-
-const { Title } = Typography;
+import AdminPageHeader from '../../components/admin/AdminPageHeader';
 
 function toDayjs(dateString) {
     return dateString ? dayjs(dateString) : null;
@@ -120,13 +119,14 @@ export default function VouchersManagePage() {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <Title level={4} style={{ margin: 0 }}>Quan ly voucher</Title>
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Them voucher</Button>
-            </div>
-
-            <Card style={{ borderRadius: 12 }}>
-                <Table rowKey="_id" loading={loading} columns={columns} dataSource={vouchers} size="small" />
+            <AdminPageHeader
+                title="Voucher"
+                subtitle="Quản lý mã giảm giá"
+                breadcrumb={[{ label: 'Admin', to: '/admin' }, { label: 'Voucher' }]}
+                actions={<Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm voucher</Button>}
+            />
+            <Card className="admin-card" bordered={false}>
+                <Table rowKey="_id" loading={loading} columns={columns} dataSource={vouchers} size="middle" className="admin-table" scroll={{ x: 800 }} />
             </Card>
 
             <Modal

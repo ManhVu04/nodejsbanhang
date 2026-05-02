@@ -31,6 +31,8 @@ const OrdersManagePage = lazy(() => import('./pages/admin/OrdersManagePage'));
 const InventoryManagePage = lazy(() => import('./pages/admin/InventoryManagePage'));
 const VouchersManagePage = lazy(() => import('./pages/admin/VouchersManagePage'));
 const ReturnsManagePage = lazy(() => import('./pages/admin/ReturnsManagePage'));
+const UsersManagePage = lazy(() => import('./pages/admin/UsersManagePage'));
+const AuditLogsPage = lazy(() => import('./pages/admin/AuditLogsPage'));
 
 function AppInit() {
     const dispatch = useDispatch();
@@ -88,6 +90,8 @@ function App() {
                             <Route path="inventory" element={<InventoryManagePage />} />
                             <Route path="vouchers" element={<VouchersManagePage />} />
                             <Route path="returns" element={<ReturnsManagePage />} />
+                            <Route path="users" element={<UsersManagePage />} />
+                            <Route path="audit-logs" element={<AuditLogsPage />} />
                         </Route>
                     </Route>
                 </Routes>

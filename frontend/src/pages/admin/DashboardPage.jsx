@@ -1,13 +1,19 @@
-import { Card, Row, Col, Statistic, Typography, Table, Tag, Spin } from 'antd';
-import { DollarOutlined, ShoppingCartOutlined, UserOutlined, InboxOutlined, RiseOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Table, Tag, Spin, Avatar } from 'antd';
+import {
+    DollarOutlined, ShoppingCartOutlined, UserOutlined, InboxOutlined,
+    RollbackOutlined, CheckCircleOutlined,
+} from '@ant-design/icons';
 import { useEffect, useState } from 'react';
-import { Bar, Doughnut } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title as ChartTitle, Tooltip, Legend } from 'chart.js';
+import { Line, Doughnut } from 'react-chartjs-2';
+import {
+    Chart as ChartJS, CategoryScale, LinearScale, LineElement, PointElement,
+    ArcElement, Title as ChartTitle, Tooltip, Legend, Filler,
+} from 'chart.js';
 import api from '../../utils/api';
+import AdminStatCard from '../../components/admin/AdminStatCard';
+import { orderStatusColors } from '../../components/admin/statusColors';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, ChartTitle, Tooltip, Legend);
-
-const { Title } = Typography;
+ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, ArcElement, ChartTitle, Tooltip, Legend, Filler);
 
 export default function DashboardPage() {
     const [summary, setSummary] = useState(null);
@@ -15,6 +21,10 @@ export default function DashboardPage() {
     const [topProducts, setTopProducts] = useState([]);
     const [orderStats, setOrderStats] = useState({});
     const [recentOrders, setRecentOrders] = useState([]);
+    const [lowStock, setLowStock] = useState([]);
+    const [recentUsers, setRecentUsers] = useState([]);
+    const [pendingReturns, setPendingReturns] = useState(0);
+    const [refundedReturns, setRefundedReturns] = useState(0);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -23,126 +33,238 @@ export default function DashboardPage() {
             api.get('/dashboard/revenue?period=day'),
             api.get('/dashboard/top-products?limit=5'),
             api.get('/dashboard/order-stats'),
-            api.get('/dashboard/recent-orders')
-        ]).then(([s, r, t, os, ro]) => {
+            api.get('/dashboard/recent-orders'),
+            api.get('/inventories?limit=200'),
+            api.get('/users'),
+            api.get('/returns/admin/all?status=Requested&limit=1'),
+            api.get('/returns/admin/all?status=Refunded&limit=1'),
+        ]).then(([s, r, t, os, ro, inv, users, pendRet, refRet]) => {
             setSummary(s.data);
             setRevenue(r.data);
             setTopProducts(t.data);
             setOrderStats(os.data);
             setRecentOrders(ro.data);
+
+            const allInv = inv.data?.inventories || [];
+            const low = allInv
+                .filter((i) => i.stock <= 5)
+                .sort((a, b) => a.stock - b.stock)
+                .slice(0, 5);
+            setLowStock(low);
+
+            const allUsers = Array.isArray(users.data) ? users.data : [];
+            const sorted = [...allUsers].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+            setRecentUsers(sorted);
+
+            setPendingReturns(pendRet.data?.total || 0);
+            setRefundedReturns(refRet.data?.total || 0);
         }).catch(() => {}).finally(() => setLoading(false));
     }, []);
 
     if (loading) return <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>;
 
     const revenueChartData = {
-        labels: revenue.map(r => r._id),
+        labels: revenue.map((r) => r._id),
         datasets: [{
             label: 'Doanh thu (VNĐ)',
-            data: revenue.map(r => r.revenue),
-            backgroundColor: 'rgba(102, 126, 234, 0.7)',
-            borderColor: '#667eea',
-            borderWidth: 1,
-            borderRadius: 6
-        }]
+            data: revenue.map((r) => r.revenue),
+            borderColor: '#b7792b',
+            backgroundColor: 'rgba(183,121,43,0.15)',
+            borderWidth: 2,
+            pointRadius: 3,
+            pointBackgroundColor: '#b7792b',
+            tension: 0.35,
+            fill: true,
+        }],
     };
 
     const orderStatsData = {
         labels: Object.keys(orderStats),
         datasets: [{
             data: Object.values(orderStats),
-            backgroundColor: ['#faad14', '#1890ff', '#13c2c2', '#52c41a', '#ff4d4f'],
-            borderWidth: 0
-        }]
+            backgroundColor: ['#b7792b', '#1f3a3d', '#6b7c5e', '#8b4a2b', '#57534e'],
+            borderWidth: 0,
+        }],
     };
 
-    const statusColors = { Pending: 'orange', Paid: 'blue', Shipped: 'cyan', Delivered: 'green', Cancelled: 'red' };
+    const chartOptions = {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } },
+    };
+
+    const doughnutOptions = {
+        responsive: true,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+    };
+
+    const viFormat = (v) => Number(v).toLocaleString('vi-VN');
 
     return (
         <div>
-            <Title level={3}>📊 Dashboard</Title>
-
-            {/* Summary Cards */}
+            {/* Stat cards */}
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                <Col xs={24} sm={12} md={6}>
-                    <Card style={{ borderRadius: 12, background: 'linear-gradient(135deg, #667eea, #764ba2)' }} bodyStyle={{ padding: 20 }}>
-                        <Statistic title={<span style={{ color: 'rgba(255,255,255,0.8)' }}>Doanh thu</span>}
-                            value={summary?.totalRevenue || 0} suffix="đ"
-                            valueStyle={{ color: '#fff', fontWeight: 700 }}
-                            prefix={<DollarOutlined />}
-                            formatter={(v) => Number(v).toLocaleString('vi-VN')} />
-                    </Card>
+                <Col xs={24} sm={12} md={8} xl={4}>
+                    <AdminStatCard
+                        title="Doanh thu"
+                        value={summary?.totalRevenue || 0}
+                        suffix="đ"
+                        icon={<DollarOutlined />}
+                        accent={1}
+                        formatter={viFormat}
+                    />
                 </Col>
-                <Col xs={24} sm={12} md={6}>
-                    <Card style={{ borderRadius: 12, background: 'linear-gradient(135deg, #f093fb, #f5576c)' }} bodyStyle={{ padding: 20 }}>
-                        <Statistic title={<span style={{ color: 'rgba(255,255,255,0.8)' }}>Đơn hàng</span>}
-                            value={summary?.totalOrders || 0}
-                            valueStyle={{ color: '#fff', fontWeight: 700 }}
-                            prefix={<ShoppingCartOutlined />} />
-                    </Card>
+                <Col xs={24} sm={12} md={8} xl={4}>
+                    <AdminStatCard
+                        title="Đơn hàng"
+                        value={summary?.totalOrders || 0}
+                        icon={<ShoppingCartOutlined />}
+                        accent={2}
+                        sub={`Chờ: ${summary?.pendingOrders || 0} · Đã thanh toán: ${summary?.paidOrders || 0}`}
+                    />
                 </Col>
-                <Col xs={24} sm={12} md={6}>
-                    <Card style={{ borderRadius: 12, background: 'linear-gradient(135deg, #4facfe, #00f2fe)' }} bodyStyle={{ padding: 20 }}>
-                        <Statistic title={<span style={{ color: 'rgba(255,255,255,0.8)' }}>Khách hàng</span>}
-                            value={summary?.totalCustomers || 0}
-                            valueStyle={{ color: '#fff', fontWeight: 700 }}
-                            prefix={<UserOutlined />} />
-                    </Card>
+                <Col xs={24} sm={12} md={8} xl={4}>
+                    <AdminStatCard
+                        title="Khách hàng"
+                        value={summary?.totalCustomers || 0}
+                        icon={<UserOutlined />}
+                        accent={3}
+                    />
                 </Col>
-                <Col xs={24} sm={12} md={6}>
-                    <Card style={{ borderRadius: 12, background: 'linear-gradient(135deg, #43e97b, #38f9d7)' }} bodyStyle={{ padding: 20 }}>
-                        <Statistic title={<span style={{ color: 'rgba(255,255,255,0.8)' }}>Sản phẩm</span>}
-                            value={summary?.totalProducts || 0}
-                            valueStyle={{ color: '#fff', fontWeight: 700 }}
-                            prefix={<InboxOutlined />} />
-                    </Card>
+                <Col xs={24} sm={12} md={8} xl={4}>
+                    <AdminStatCard
+                        title="Sản phẩm"
+                        value={summary?.totalProducts || 0}
+                        icon={<InboxOutlined />}
+                        accent={4}
+                    />
+                </Col>
+                <Col xs={24} sm={12} md={8} xl={4}>
+                    <AdminStatCard
+                        title="Hoàn trả chờ"
+                        value={pendingReturns}
+                        icon={<RollbackOutlined />}
+                        accent={5}
+                    />
+                </Col>
+                <Col xs={24} sm={12} md={8} xl={4}>
+                    <AdminStatCard
+                        title="Đã hoàn tiền"
+                        value={refundedReturns}
+                        icon={<CheckCircleOutlined />}
+                        accent={6}
+                    />
                 </Col>
             </Row>
 
             {/* Charts */}
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col xs={24} lg={16}>
-                    <Card title="📈 Doanh thu theo ngày" style={{ borderRadius: 12 }}>
-                        <Bar data={revenueChartData} options={{
-                            responsive: true,
-                            plugins: { legend: { display: false } },
-                            scales: { y: { beginAtZero: true } }
-                        }} />
+                    <Card className="admin-card" title="Doanh thu theo ngày" bordered={false}>
+                        <Line data={revenueChartData} options={chartOptions} />
                     </Card>
                 </Col>
                 <Col xs={24} lg={8}>
-                    <Card title="📊 Phân bổ đơn hàng" style={{ borderRadius: 12 }}>
-                        <Doughnut data={orderStatsData} options={{
-                            responsive: true,
-                            plugins: { legend: { position: 'bottom' } }
-                        }} />
+                    <Card className="admin-card" title="Phân bổ đơn hàng" bordered={false}>
+                        <Doughnut data={orderStatsData} options={doughnutOptions} />
                     </Card>
                 </Col>
             </Row>
 
-            {/* Top Products & Recent Orders */}
-            <Row gutter={[16, 16]}>
+            {/* Top products + recent orders */}
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col xs={24} lg={12}>
-                    <Card title="🏆 Top sản phẩm bán chạy" style={{ borderRadius: 12 }}>
-                        <Table dataSource={topProducts} pagination={false} rowKey={(r) => r._id} size="small"
+                    <Card className="admin-card" title="Top sản phẩm bán chạy" bordered={false}>
+                        <Table
+                            dataSource={topProducts}
+                            pagination={false}
+                            rowKey={(r) => r._id}
+                            size="small"
+                            className="admin-table"
                             columns={[
                                 { title: 'Sản phẩm', render: (_, r) => r.product?.title || 'N/A' },
-                                { title: 'Đã bán', dataIndex: 'soldCount', align: 'center', render: v => <Tag color="green">{v}</Tag> },
-                                { title: 'Tồn kho', dataIndex: 'stock', align: 'center', render: v => <Tag color={v > 0 ? 'blue' : 'red'}>{v}</Tag> }
+                                { title: 'Đã bán', dataIndex: 'soldCount', align: 'center', render: (v) => <Tag color="green">{v}</Tag> },
+                                { title: 'Tồn kho', dataIndex: 'stock', align: 'center', render: (v) => <Tag color={v > 0 ? 'blue' : 'red'}>{v}</Tag> },
                             ]}
                         />
                     </Card>
                 </Col>
                 <Col xs={24} lg={12}>
-                    <Card title="🕐 Đơn hàng gần đây" style={{ borderRadius: 12 }}>
-                        <Table dataSource={recentOrders} pagination={false} rowKey="_id" size="small"
+                    <Card className="admin-card" title="Đơn hàng gần đây" bordered={false}>
+                        <Table
+                            dataSource={recentOrders}
+                            pagination={false}
+                            rowKey="_id"
+                            size="small"
+                            className="admin-table"
                             columns={[
-                                { title: 'Mã', dataIndex: '_id', render: id => `#${id.slice(-6)}` },
-                                { title: 'Khách', dataIndex: 'user', render: u => u?.username || 'N/A' },
-                                { title: 'Tổng', dataIndex: 'totalPrice', render: p => `${p?.toLocaleString('vi-VN')}đ` },
-                                { title: 'TT', dataIndex: 'status', render: s => <Tag color={statusColors[s]} style={{ fontSize: 11 }}>{s}</Tag> }
+                                { title: 'Mã', dataIndex: '_id', render: (id) => `#${id.slice(-6)}` },
+                                { title: 'Khách', dataIndex: 'user', render: (u) => u?.username || 'N/A' },
+                                { title: 'Tổng', dataIndex: 'totalPrice', render: (p) => `${p?.toLocaleString('vi-VN')}đ` },
+                                { title: 'TT', dataIndex: 'status', render: (s) => <Tag color={orderStatusColors[s]} style={{ fontSize: 11 }}>{s}</Tag> },
                             ]}
                         />
+                    </Card>
+                </Col>
+            </Row>
+
+            {/* Low stock + recent users */}
+            <Row gutter={[16, 16]}>
+                <Col xs={24} lg={12}>
+                    <Card className="admin-card" title="Cảnh báo tồn kho thấp" bordered={false}>
+                        {lowStock.length === 0
+                            ? <p style={{ color: 'var(--color-muted)', fontSize: 13 }}>Không có sản phẩm tồn kho thấp.</p>
+                            : (
+                                <Table
+                                    dataSource={lowStock}
+                                    pagination={false}
+                                    rowKey={(r) => r._id}
+                                    size="small"
+                                    className="admin-table"
+                                    columns={[
+                                        { title: 'Sản phẩm', render: (_, r) => r.product?.title || 'N/A' },
+                                        {
+                                            title: 'Tồn kho',
+                                            dataIndex: 'stock',
+                                            align: 'center',
+                                            render: (v) => <Tag color={v <= 2 ? 'red' : 'orange'}>{v}</Tag>,
+                                        },
+                                    ]}
+                                />
+                            )}
+                    </Card>
+                </Col>
+                <Col xs={24} lg={12}>
+                    <Card className="admin-card" title="Người dùng mới" bordered={false}>
+                        {recentUsers.length === 0
+                            ? <p style={{ color: 'var(--color-muted)', fontSize: 13 }}>Chưa có người dùng.</p>
+                            : (
+                                <Table
+                                    dataSource={recentUsers}
+                                    pagination={false}
+                                    rowKey="_id"
+                                    size="small"
+                                    className="admin-table"
+                                    columns={[
+                                        {
+                                            title: '',
+                                            width: 40,
+                                            render: (_, r) => (
+                                                <Avatar size={28} style={{ background: '#b7792b', fontSize: 12 }}>
+                                                    {(r.fullName || r.username || 'U').charAt(0).toUpperCase()}
+                                                </Avatar>
+                                            ),
+                                        },
+                                        { title: 'Tên', dataIndex: 'username' },
+                                        { title: 'Email', dataIndex: 'email', ellipsis: true },
+                                        {
+                                            title: 'Ngày tạo',
+                                            dataIndex: 'createdAt',
+                                            render: (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—',
+                                        },
+                                    ]}
+                                />
+                            )}
                     </Card>
                 </Col>
             </Row>

@@ -1,9 +1,8 @@
-import { Table, Button, Modal, Form, InputNumber, Input, message, Card, Typography, Tag, Tabs } from 'antd';
+import { Table, Button, Modal, Form, InputNumber, Input, message, Card, Tag, Tabs } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useEffect, useState, useCallback } from 'react';
 import api, { resolveImageUrl } from '../../utils/api';
-
-const { Title } = Typography;
+import AdminPageHeader from '../../components/admin/AdminPageHeader';
 
 export default function InventoryManagePage() {
     const [inventories, setInventories] = useState([]);
@@ -118,18 +117,24 @@ export default function InventoryManagePage() {
 
     return (
         <div>
-            <Title level={4}>Quản lý kho hàng</Title>
+            <AdminPageHeader
+                title="Kho hàng"
+                subtitle="Quản lý tồn kho và lịch sử nhập/xuất"
+                breadcrumb={[{ label: 'Admin', to: '/admin' }, { label: 'Kho hàng' }]}
+            />
             <Tabs items={[
                 {
-                    key: 'inventory', label: '📦 Tồn kho',
+                    key: 'inventory', label: 'Tồn kho',
                     children: (
-                        <Card style={{ borderRadius: 12 }}>
+                        <Card className="admin-card" bordered={false}>
                             <Table
                                 dataSource={inventories}
                                 columns={invColumns}
                                 loading={loading}
                                 rowKey="_id"
-                                size="small"
+                                size="middle"
+                                className="admin-table"
+                                scroll={{ x: 600 }}
                                 onChange={handleInventoryTableChange}
                                 pagination={{
                                     current: inventoryPage,
@@ -144,10 +149,10 @@ export default function InventoryManagePage() {
                     )
                 },
                 {
-                    key: 'logs', label: '📋 Lịch sử nhập/xuất',
+                    key: 'logs', label: 'Lịch sử nhập/xuất',
                     children: (
-                        <Card style={{ borderRadius: 12 }}>
-                            <Table dataSource={logs} columns={logColumns} rowKey="_id" size="small" />
+                        <Card className="admin-card" bordered={false}>
+                            <Table dataSource={logs} columns={logColumns} rowKey="_id" size="middle" className="admin-table" scroll={{ x: 700 }} />
                         </Card>
                     )
                 }

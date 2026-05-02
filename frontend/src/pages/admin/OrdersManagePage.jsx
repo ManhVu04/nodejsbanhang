@@ -1,12 +1,10 @@
-import { Table, Tag, Select, message, Card, Typography, Button } from 'antd';
+import { Table, Tag, Select, message, Card, Button } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../utils/api';
-
-const { Title } = Typography;
-const statusColors = { Pending: 'orange', Paid: 'blue', Shipped: 'cyan', Delivered: 'green', Cancelled: 'red' };
-const statusLabels = { Pending: 'Chờ xử lý', Paid: 'Đã thanh toán', Shipped: 'Đang giao', Delivered: 'Đã giao', Cancelled: 'Đã hủy' };
+import AdminPageHeader from '../../components/admin/AdminPageHeader';
+import { orderStatusColors as statusColors, orderStatusLabels as statusLabels } from '../../components/admin/statusColors';
 const afterSaleColors = { None: 'default', Requested: 'orange', Approved: 'blue', Rejected: 'red', Refunded: 'green' };
 const orderStatusTransitions = {
     Pending: ['Paid', 'Shipped', 'Cancelled'],
@@ -122,15 +120,20 @@ export default function OrdersManagePage() {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <Title level={4} style={{ margin: 0 }}>Quản lý đơn hàng</Title>
-                <Select placeholder="Lọc trạng thái" allowClear style={{ width: 160 }}
-                    value={statusFilter || undefined} onChange={handleStatusFilterChange}>
-                    {Object.keys(statusLabels).map(s => <Select.Option key={s} value={s}>{statusLabels[s]}</Select.Option>)}
-                </Select>
-            </div>
-            <Card style={{ borderRadius: 12 }}>
-                <Table dataSource={orders} columns={columns} loading={loading} rowKey="_id" size="small"
+            <AdminPageHeader
+                title="Đơn hàng"
+                subtitle="Quản lý và xử lý đơn hàng"
+                breadcrumb={[{ label: 'Admin', to: '/admin' }, { label: 'Đơn hàng' }]}
+                actions={
+                    <Select placeholder="Lọc trạng thái" allowClear style={{ width: 160 }}
+                        value={statusFilter || undefined} onChange={handleStatusFilterChange}>
+                        {Object.keys(statusLabels).map(s => <Select.Option key={s} value={s}>{statusLabels[s]}</Select.Option>)}
+                    </Select>
+                }
+            />
+            <Card className="admin-card" bordered={false}>
+                <Table dataSource={orders} columns={columns} loading={loading} rowKey="_id" size="middle" className="admin-table"
+                    scroll={{ x: 800 }}
                     pagination={{ total, current: page, pageSize: 10, onChange: handlePageChange }} />
             </Card>
         </div>

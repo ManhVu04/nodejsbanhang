@@ -1,9 +1,8 @@
-import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Space, Tag, Popconfirm, Card, Typography, Upload, Image } from 'antd';
+import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Space, Tag, Popconfirm, Card, Upload, Image } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import { useEffect, useState, useCallback } from 'react';
 import api, { resolveImageUrl } from '../../utils/api';
-
-const { Title } = Typography;
+import AdminPageHeader from '../../components/admin/AdminPageHeader';
 const ACCEPTED_PRODUCT_MEDIA_TYPES = 'image/*,video/mp4,video/webm,video/ogg,video/quicktime';
 
 export default function ProductsManagePage() {
@@ -292,16 +291,14 @@ export default function ProductsManagePage() {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div>
-                    <Title level={4} style={{ margin: 0 }}>Quản lý sản phẩm</Title>
-                    <Typography.Text type="secondary">ProductMedia nằm trong popup sửa sản phẩm hoặc nút Quản lý ở cột Media.</Typography.Text>
-                </div>
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}
-                    style={{ borderRadius: 8, background: '#764ba2', border: 'none' }}>Thêm sản phẩm</Button>
-            </div>
-            <Card style={{ borderRadius: 12 }}>
-                <Table dataSource={products} columns={columns} loading={loading} rowKey="_id" size="small" />
+            <AdminPageHeader
+                title="Sản phẩm"
+                subtitle="Quản lý danh sách sản phẩm"
+                breadcrumb={[{ label: 'Admin', to: '/admin' }, { label: 'Sản phẩm' }]}
+                actions={<Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm sản phẩm</Button>}
+            />
+            <Card className="admin-card" bordered={false}>
+                <Table dataSource={products} columns={columns} loading={loading} rowKey="_id" size="middle" className="admin-table" scroll={{ x: 800 }} />
             </Card>
 
             <Modal title={editItem ? 'Sửa sản phẩm' : 'Thêm sản phẩm'} open={modalOpen}

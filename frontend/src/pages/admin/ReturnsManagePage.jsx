@@ -1,16 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Card, Table, Tag, Typography, Select, Button, Modal, Form, Input, InputNumber, Space, message } from 'antd';
+import { Card, Table, Tag, Select, Button, Modal, Form, Input, InputNumber, Space, message } from 'antd';
 import api from '../../utils/api';
-
-const { Title } = Typography;
-
-const statusColors = {
-    Requested: 'orange',
-    Approved: 'blue',
-    Rejected: 'red',
-    Refunded: 'green',
-    Cancelled: 'default'
-};
+import AdminPageHeader from '../../components/admin/AdminPageHeader';
+import { returnStatusColors as statusColors } from '../../components/admin/statusColors';
 
 export default function ReturnsManagePage() {
     const [requests, setRequests] = useState([]);
@@ -105,25 +97,28 @@ export default function ReturnsManagePage() {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <Title level={4} style={{ margin: 0 }}>Yeu cau doi tra va hoan tien</Title>
-                <Select
-                    value={statusFilter || undefined}
-                    placeholder="Loc trang thai"
-                    allowClear
-                    style={{ width: 180 }}
-                    onChange={(value) => setStatusFilter(value || '')}
-                    options={[
-                        { value: 'Requested', label: 'Requested' },
-                        { value: 'Approved', label: 'Approved' },
-                        { value: 'Rejected', label: 'Rejected' },
-                        { value: 'Refunded', label: 'Refunded' }
-                    ]}
-                />
-            </div>
-
-            <Card style={{ borderRadius: 12 }}>
-                <Table rowKey="_id" loading={loading} columns={columns} dataSource={requests} size="small" />
+            <AdminPageHeader
+                title="Đổi trả / Hoàn tiền"
+                subtitle="Xử lý yêu cầu đổi trả và hoàn tiền"
+                breadcrumb={[{ label: 'Admin', to: '/admin' }, { label: 'Đổi trả / Hoàn tiền' }]}
+                actions={
+                    <Select
+                        value={statusFilter || undefined}
+                        placeholder="Lọc trạng thái"
+                        allowClear
+                        style={{ width: 180 }}
+                        onChange={(value) => setStatusFilter(value || '')}
+                        options={[
+                            { value: 'Requested', label: 'Requested' },
+                            { value: 'Approved', label: 'Approved' },
+                            { value: 'Rejected', label: 'Rejected' },
+                            { value: 'Refunded', label: 'Refunded' }
+                        ]}
+                    />
+                }
+            />
+            <Card className="admin-card" bordered={false}>
+                <Table rowKey="_id" loading={loading} columns={columns} dataSource={requests} size="middle" className="admin-table" scroll={{ x: 700 }} />
             </Card>
 
             <Modal

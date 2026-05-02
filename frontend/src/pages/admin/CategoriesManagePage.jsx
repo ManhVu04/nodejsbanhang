@@ -1,9 +1,8 @@
-import { Table, Button, Modal, Form, Input, message, Space, Popconfirm, Card, Typography, Upload, Image } from 'antd';
+import { Table, Button, Modal, Form, Input, message, Space, Popconfirm, Card, Upload, Image } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import { useEffect, useState, useCallback } from 'react';
 import api, { resolveImageUrl } from '../../utils/api';
-
-const { Title } = Typography;
+import AdminPageHeader from '../../components/admin/AdminPageHeader';
 
 export default function CategoriesManagePage() {
     const [categories, setCategories] = useState([]);
@@ -102,13 +101,14 @@ export default function CategoriesManagePage() {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <Title level={4} style={{ margin: 0 }}>Quản lý danh mục</Title>
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}
-                    style={{ borderRadius: 8, background: '#764ba2', border: 'none' }}>Thêm danh mục</Button>
-            </div>
-            <Card style={{ borderRadius: 12 }}>
-                <Table dataSource={categories.filter(c => !c.isDeleted)} columns={columns} loading={loading} rowKey="_id" size="small" />
+            <AdminPageHeader
+                title="Danh mục"
+                subtitle="Quản lý danh mục sản phẩm"
+                breadcrumb={[{ label: 'Admin', to: '/admin' }, { label: 'Danh mục' }]}
+                actions={<Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm danh mục</Button>}
+            />
+            <Card className="admin-card" bordered={false}>
+                <Table dataSource={categories.filter(c => !c.isDeleted)} columns={columns} loading={loading} rowKey="_id" size="middle" className="admin-table" />
             </Card>
 
             <Modal title={editItem ? 'Sửa danh mục' : 'Thêm danh mục'} open={modalOpen}
