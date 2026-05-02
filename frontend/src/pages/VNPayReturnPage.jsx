@@ -1,6 +1,6 @@
 import { Result, Button, Spin } from 'antd';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import api from '../utils/api';
 
 export default function VNPayReturnPage() {
@@ -9,11 +9,14 @@ export default function VNPayReturnPage() {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
+    const params = useMemo(
+        () => Object.fromEntries(searchParams.entries()),
+        [searchParams]
+    );
+    const hasValidParams = Boolean(params.vnp_TxnRef && params.vnp_SecureHash);
+
     useEffect(() => {
-        const params = Object.fromEntries(searchParams.entries());
-        if (!params.vnp_TxnRef || !params.vnp_SecureHash) {
-            setResult({ code: '98', message: 'Liên kết thanh toán không hợp lệ' });
-            setLoading(false);
+        if (!hasValidParams) {
             return;
         }
 
@@ -21,18 +24,20 @@ export default function VNPayReturnPage() {
             .then(res => setResult(res.data))
             .catch(() => setResult({ code: '99', message: 'Lỗi xử lý thanh toán' }))
             .finally(() => setLoading(false));
-    }, [searchParams]);
+    }, [hasValidParams, params]);
 
     if (loading) return <div style={{ textAlign: 'center', padding: 100 }}><Spin size="large" /><div>Đang xử lý thanh toán...</div></div>;
 
-    const isSuccess = result?.code === '00';
+    const fallbackResult = { code: '98', message: 'Liên kết thanh toán không hợp lệ' };
+    const resolvedResult = result || fallbackResult;
+    const isSuccess = resolvedResult.code === '00';
 
     return (
         <div style={{ padding: 60 }}>
             <Result
                 status={isSuccess ? 'success' : 'error'}
                 title={isSuccess ? 'Thanh toán thành công!' : 'Thanh toán thất bại'}
-                subTitle={result?.message}
+                subTitle={resolvedResult.message}
                 extra={[
                     <Button type="primary" key="orders" onClick={() => navigate('/orders')} style={{ borderRadius: 8 }}>
                         Xem đơn hàng
