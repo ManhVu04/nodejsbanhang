@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Input, Select, Switch, Tag, Avatar, Popconfirm, message, Card, Space } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import api from '../../utils/api';
@@ -12,20 +12,28 @@ export default function UsersManagePage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const [roles, setRoles] = useState([]);
+    const [refreshKey, setRefreshKey] = useState(0);
     const [form] = Form.useForm();
 
-    const fetchUsers = useCallback(() => {
-        setLoading(true);
-        api.get('/users', { params: { page, limit: 10 } })
-            .then((res) => {
+    const refreshUsers = () => setRefreshKey((k) => k + 1);
+
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            setLoading(true);
+            try {
+                const res = await api.get('/users', { params: { page, limit: 10 } });
+                if (cancelled) return;
                 const data = Array.isArray(res.data) ? res.data : [];
                 setUsers(data);
                 setTotal(data.length);
-            })
-            .finally(() => setLoading(false));
-    }, [page]);
-
-    useEffect(() => { fetchUsers(); }, [fetchUsers]);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+        load();
+        return () => { cancelled = true; };
+    }, [page, refreshKey]);
 
     useEffect(() => {
         api.get('/roles').then((res) => setRoles(Array.isArray(res.data) ? res.data : []));
@@ -71,7 +79,7 @@ export default function UsersManagePage() {
                 message.success('Tạo người dùng thành công');
             }
             setModalOpen(false);
-            fetchUsers();
+            refreshUsers();
         } catch (err) {
             const msg = err?.response?.data?.message || err.message;
             if (msg) message.error(msg);
@@ -82,7 +90,7 @@ export default function UsersManagePage() {
         try {
             await api.delete(`/users/${id}`);
             message.success('Đã xóa người dùng');
-            fetchUsers();
+            refreshUsers();
         } catch (err) {
             message.error(err?.response?.data?.message || 'Xóa thất bại');
         }

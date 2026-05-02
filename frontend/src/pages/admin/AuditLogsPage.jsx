@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Table, Tag, Select, Button, Drawer, Descriptions, Card, Row, Col, DatePicker, Space, Statistic, Spin } from 'antd';
 import { EyeOutlined, ReloadOutlined } from '@ant-design/icons';
 import api from '../../utils/api';
@@ -51,24 +51,28 @@ export default function AuditLogsPage() {
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedLog, setSelectedLog] = useState(null);
 
-    const buildParams = useCallback(() => {
-        const p = { page, limit: 20 };
-        if (filters.action) p.action = filters.action;
-        if (filters.resourceType) p.resourceType = filters.resourceType;
-        if (filters.status) p.status = filters.status;
-        if (filters.dateRange?.[0]) p.startDate = filters.dateRange[0].toISOString();
-        if (filters.dateRange?.[1]) p.endDate = filters.dateRange[1].toISOString();
-        return p;
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            setLoading(true);
+            const params = { page, limit: 20 };
+            if (filters.action) params.action = filters.action;
+            if (filters.resourceType) params.resourceType = filters.resourceType;
+            if (filters.status) params.status = filters.status;
+            if (filters.dateRange?.[0]) params.startDate = filters.dateRange[0].toISOString();
+            if (filters.dateRange?.[1]) params.endDate = filters.dateRange[1].toISOString();
+            try {
+                const res = await api.get('/auditLogs', { params });
+                if (cancelled) return;
+                setLogs(res.data.logs || []);
+                setTotal(res.data.total || 0);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+        load();
+        return () => { cancelled = true; };
     }, [page, filters]);
-
-    const fetchLogs = useCallback(() => {
-        setLoading(true);
-        api.get('/auditLogs', { params: buildParams() })
-            .then((res) => { setLogs(res.data.logs || []); setTotal(res.data.total || 0); })
-            .finally(() => setLoading(false));
-    }, [buildParams]);
-
-    useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
     useEffect(() => {
         api.get('/auditLogs/stats').then((res) => setStats(res.data)).catch(() => {});
