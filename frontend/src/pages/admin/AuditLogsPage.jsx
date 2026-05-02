@@ -62,7 +62,7 @@ export default function AuditLogsPage() {
             if (filters.dateRange?.[0]) params.startDate = filters.dateRange[0].toISOString();
             if (filters.dateRange?.[1]) params.endDate = filters.dateRange[1].toISOString();
             try {
-                const res = await api.get('/auditLogs', { params });
+                const res = await api.get('/audit-logs', { params });
                 if (cancelled) return;
                 setLogs(res.data.logs || []);
                 setTotal(res.data.total || 0);
@@ -75,7 +75,7 @@ export default function AuditLogsPage() {
     }, [page, filters]);
 
     useEffect(() => {
-        api.get('/auditLogs/stats').then((res) => setStats(res.data)).catch(() => {});
+        api.get('/audit-logs/stats').then((res) => setStats(res.data)).catch(() => {});
     }, []);
 
     const actionOptions = stats?.actionBreakdown?.map((a) => ({ value: a._id, label: a._id })) || [];
