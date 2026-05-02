@@ -22,7 +22,7 @@ const { TextArea } = Input;
 const MANUAL_ADDRESS_OPTION = "__manual_address__";
 
 export default function CheckoutPage() {
-  const { items } = useSelector((state) => state.cart);
+  const { items, loading: cartLoading } = useSelector((state) => state.cart);
   const { user } = useSelector((state) => state.auth);
   const [paymentMethod, setPaymentMethod] = useState("COD");
   const [shippingPhoneNumber, setShippingPhoneNumber] = useState("");
@@ -112,7 +112,7 @@ export default function CheckoutPage() {
   }, [user?._id]);
 
   const total = items.reduce(
-    (sum, item) => sum + (item.product?.price || 0) * item.quantity,
+    (sum, item) => sum + (item.product?.price ?? item.priceAtPurchase ?? 0) * item.quantity,
     0,
   );
   const discountAmount = voucherInfo?.discountAmount || 0;
@@ -131,6 +131,20 @@ export default function CheckoutPage() {
   const resolvedShippingPhoneNumber = isUsingSavedAddress
     ? String(selectedAddress?.phoneNumber || "").trim()
     : String(shippingPhoneNumber || "").trim();
+
+  useEffect(() => {
+    if (voucherInfo) {
+      setVoucherInfo(null);
+      setVoucherCode("");
+      message.info("Đã đặt lại mã giảm giá vì giỏ hàng thay đổi");
+    }
+  }, [items.length, total]);
+
+  useEffect(() => {
+    if (!cartLoading && items.length === 0) {
+      navigate("/cart");
+    }
+  }, [cartLoading, items.length, navigate]);
 
   const handleAddressSelection = (value) => {
     setSelectedAddressId(value);
@@ -193,6 +207,14 @@ export default function CheckoutPage() {
 
     setLoading(true);
     try {
+      const latestCart = await dispatch(fetchCart()).unwrap();
+      const latestInactiveItems = Array.isArray(latestCart?.inactiveProducts) ? latestCart.inactiveProducts : [];
+      const latestActiveItems = Array.isArray(latestCart?.activeProducts) ? latestCart.activeProducts : [];
+      if (latestInactiveItems.length > 0 || latestActiveItems.length === 0) {
+        message.error("Gio hang co san pham khong con kha dung, vui long kiem tra lai");
+        return;
+      }
+
       let activeShippingAddressId = isUsingSavedAddress
         ? selectedAddress?._id
         : null;
@@ -237,16 +259,16 @@ export default function CheckoutPage() {
         note,
         voucherCode: voucherInfo?.code || "",
       });
-      dispatch(clearCart());
-      await dispatch(fetchCart());
-
       if (paymentMethod === "VNPay") {
-        // Get VNPay payment URL
         const payRes = await api.post("/vnpay/create-payment-url", {
           orderId: res.data.order._id,
         });
+        dispatch(clearCart());
+        await dispatch(fetchCart());
         window.location.href = payRes.data.paymentUrl;
       } else {
+        dispatch(clearCart());
+        await dispatch(fetchCart());
         message.success("Đặt hàng thành công!");
         navigate("/orders");
       }
@@ -257,9 +279,8 @@ export default function CheckoutPage() {
     }
   };
 
-  if (items.length === 0) {
-    navigate("/cart");
-    return null;
+  if (cartLoading || items.length === 0) {
+    return <section className="page-container" style={{ maxWidth: 920 }}><Card loading /></section>;
   }
 
   return (

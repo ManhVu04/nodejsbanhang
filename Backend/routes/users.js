@@ -28,6 +28,19 @@ function sanitizeUserAuditData(userDoc) {
   return rawData;
 }
 
+function escapeRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function pickAdminUserUpdate(body) {
+  let updateData = {};
+  if (Object.prototype.hasOwnProperty.call(body, 'fullName')) updateData.fullName = String(body.fullName || '').trim();
+  if (Object.prototype.hasOwnProperty.call(body, 'email')) updateData.email = String(body.email || '').trim().toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(body, 'role')) updateData.role = body.role;
+  if (Object.prototype.hasOwnProperty.call(body, 'isActive')) updateData.isActive = body.isActive === true;
+  return updateData;
+}
+
 router.put('/me', CheckLogin, async function (req, res, next) {
   try {
     let updateData = {};
@@ -83,13 +96,45 @@ router.put('/me', CheckLogin, async function (req, res, next) {
 });
 
 router.get("/", adminOrModeratorGuard, async function (req, res, next) {
-  let users = await userModel
-    .find({ isDeleted: false })
-    .populate({
-      path: 'role',
-      select: 'name'
-    })
-  res.send(users);
+  try {
+    let { page = 1, limit = 10, search = '', role, isActive, isDeleted, sort = '-createdAt' } = req.query;
+    let normalizedPage = Math.max(1, Number.parseInt(page, 10) || 1);
+    let normalizedLimit = Math.min(100, Math.max(1, Number.parseInt(limit, 10) || 10));
+    let filter = {};
+
+    if (isDeleted === 'true') filter.isDeleted = true;
+    else filter.isDeleted = false;
+
+    if (isActive === 'true') filter.isActive = true;
+    if (isActive === 'false') filter.isActive = false;
+
+    let normalizedSearch = String(search || '').trim();
+    if (normalizedSearch) {
+      let escaped = escapeRegex(normalizedSearch);
+      filter.$or = [
+        { username: new RegExp(escaped, 'i') },
+        { email: new RegExp(escaped, 'i') },
+        { fullName: new RegExp(escaped, 'i') }
+      ];
+    }
+
+    if (role && mongoose.isValidObjectId(role)) {
+      filter.role = role;
+    }
+
+    let sortValue = String(sort || '-createdAt').trim();
+    let users = await userModel
+      .find(filter)
+      .populate({ path: 'role', select: 'name' })
+      .sort(sortValue)
+      .skip((normalizedPage - 1) * normalizedLimit)
+      .limit(normalizedLimit);
+    let total = await userModel.countDocuments(filter);
+
+    res.send({ users, total, page: normalizedPage, totalPages: Math.ceil(total / normalizedLimit), limit: normalizedLimit });
+  } catch (error) {
+    res.status(400).send({ message: error.message });
+  }
 });
 
 router.get("/:id", adminGuard, async function (req, res, next) {
@@ -155,8 +200,13 @@ router.put("/:id", adminGuard, async function (req, res, next) {
 
     if (!beforeUser) return res.status(404).send({ message: "id not found" });
 
+    let updateData = pickAdminUserUpdate(req.body);
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).send({ message: 'khong co du lieu cap nhat hop le' });
+    }
+
     let updatedItem = await
-      userModel.findByIdAndUpdate(id, req.body, { new: true });
+      userModel.findByIdAndUpdate(id, { $set: updateData }, { new: true });
 
     if (!updatedItem) return res.status(404).send({ message: "id not found" });
 
@@ -190,6 +240,36 @@ router.put("/:id", adminGuard, async function (req, res, next) {
       errorMessage: err.message
     });
 
+    res.status(400).send({ message: err.message });
+  }
+});
+
+router.patch("/:id/active", adminGuard, async function (req, res, next) {
+  try {
+    let id = req.params.id;
+    let beforeUser = await userModel.findById(id);
+    if (!beforeUser) return res.status(404).send({ message: "id not found" });
+
+    let updatedItem = await userModel.findByIdAndUpdate(
+      id,
+      { $set: { isActive: req.body?.isActive === true } },
+      { new: true }
+    ).populate({ path: 'role', select: 'name' });
+
+    await logAuditAction({
+      action: 'USER_UPDATE_ACTIVE',
+      adminId: req.user?._id,
+      resourceType: 'user',
+      resourceId: updatedItem._id,
+      before: sanitizeUserAuditData(beforeUser),
+      after: sanitizeUserAuditData(updatedItem),
+      description: `Updated user active state: ${updatedItem?.username || updatedItem?._id}`,
+      ipAddress: getClientIpAddress(req),
+      success: true
+    });
+
+    res.send(updatedItem);
+  } catch (err) {
     res.status(400).send({ message: err.message });
   }
 });

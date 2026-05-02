@@ -17,6 +17,7 @@ let {
   normalizeVoucherCode,
   validateVoucherForOrder,
 } = require("../utils/voucherHandler");
+let { deductAvailableStock } = require("../utils/inventoryHelper");
 
 const ORDER_STATUS_TRANSITIONS = {
   Pending: ["Paid", "Shipped", "Cancelled"],
@@ -190,19 +191,9 @@ router.post("/", CheckLogin, async function (req, res) {
 
       let qty = cartItem.quantity;
 
-      // Atomic update: only succeeds if stock >= qty (prevents over-selling)
-      let inventoryUpdate = await inventoryModel.findOneAndUpdate(
-        {
-          product: product._id,
-          stock: { $gte: qty },
-        },
-        {
-          $inc: { stock: -qty, soldCount: qty },
-        },
-        { new: true, session },
-      );
-
-      if (!inventoryUpdate) {
+      try {
+        await deductAvailableStock(product._id, qty, session);
+      } catch {
         throw new Error(
           `Sản phẩm "${product.title}" không đủ số lượng trong kho`,
         );
@@ -607,5 +598,61 @@ router.put(
     }
   },
 );
+
+router.post('/:id/cancel', CheckLogin, async function (req, res) {
+  let session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    let order = await orderModel.findOne({ _id: req.params.id, user: req.user._id }).session(session);
+    if (!order) {
+      throw new Error('Đơn hàng không tồn tại');
+    }
+    if (order.status !== 'Pending' || order.paymentMethod !== 'COD') {
+      throw new Error('Chỉ có thể hủy đơn COD đang chờ xử lý');
+    }
+
+    for (let item of order.items) {
+      await inventoryModel.findOneAndUpdate(
+        { product: item.product },
+        { $inc: { stock: item.quantity, soldCount: -item.quantity } },
+        { session },
+      );
+      await new inventoryLogModel({
+        product: item.product,
+        type: 'IN',
+        quantity: item.quantity,
+        reason: 'Người dùng hủy đơn #' + order._id,
+        order: order._id,
+        performedBy: req.user._id,
+      }).save({ session });
+    }
+
+    if (order.voucher && order.voucher.voucherId) {
+      await voucherModel.findOneAndUpdate(
+        { _id: order.voucher.voucherId, usedCount: { $gt: 0 } },
+        { $inc: { usedCount: -1 } },
+        { session },
+      );
+    }
+
+    let payment = await paymentModel.findOne({ order: order._id }).session(session);
+    if (payment) {
+      payment.status = 'failed';
+      await payment.save({ session });
+    }
+
+    order.status = 'Cancelled';
+    await order.save({ session });
+    await session.commitTransaction();
+    await session.endSession();
+
+    let updatedOrder = await orderModel.findById(order._id).populate('items.product', 'title images price slug');
+    return res.send({ message: 'Đã hủy đơn hàng', order: updatedOrder });
+  } catch (err) {
+    await session.abortTransaction();
+    await session.endSession();
+    return res.status(400).send({ message: err.message });
+  }
+});
 
 module.exports = router;

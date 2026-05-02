@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useCallback } from 'react';
-import { Card, Typography, Table, Tag, Spin, Button, Divider, Descriptions, Modal, Form, Input, InputNumber, message } from 'antd';
+import { Card, Typography, Table, Tag, Spin, Button, Divider, Descriptions, Modal, Form, Input, InputNumber, message, Space } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import api from '../utils/api';
 
@@ -8,7 +8,7 @@ const { Title, Text } = Typography;
 const statusColors = { Pending: 'orange', Paid: 'blue', Shipped: 'cyan', Delivered: 'green', Cancelled: 'red' };
 const statusLabels = { Pending: 'Chờ xử lý', Paid: 'Đã thanh toán', Shipped: 'Đang giao', Delivered: 'Đã giao', Cancelled: 'Đã hủy' };
 const afterSaleColors = { None: 'default', Requested: 'orange', Approved: 'blue', Rejected: 'red', Refunded: 'green' };
-const afterSaleLabels = { None: 'Khong', Requested: 'Dang yeu cau', Approved: 'Da duyet', Rejected: 'Bi tu choi', Refunded: 'Da hoan tien' };
+const afterSaleLabels = { None: 'Không', Requested: 'Đang yêu cầu', Approved: 'Đã duyệt', Rejected: 'Bị từ chối', Refunded: 'Đã hoàn tiền' };
 
 export default function OrderDetailPage() {
     const { id } = useParams();
@@ -40,6 +40,30 @@ export default function OrderDetailPage() {
     useEffect(() => {
         fetchOrderDetail();
     }, [fetchOrderDetail]);
+
+    const handlePayAgain = async () => {
+        try {
+            const response = await api.post('/vnpay/create-payment-url', { orderId: order._id });
+            window.location.href = response.data.paymentUrl;
+        } catch (error) {
+            message.error(error.response?.data?.message || 'Không thể tạo lại thanh toán');
+        }
+    };
+
+    const handleCancelOrder = () => {
+        Modal.confirm({
+            title: 'Hủy đơn hàng?',
+            content: 'Kho sẽ được hoàn lại sau khi hủy đơn.',
+            okText: 'Hủy đơn',
+            okButtonProps: { danger: true },
+            cancelText: 'Đóng',
+            onOk: async () => {
+                await api.post(`/orders/${order._id}/cancel`);
+                message.success('Đã hủy đơn hàng');
+                fetchOrderDetail();
+            }
+        });
+    };
 
     const handleCreateReturnRequest = async () => {
         try {
@@ -101,6 +125,14 @@ export default function OrderDetailPage() {
                     </Descriptions.Item>
                     {payment && <Descriptions.Item label="TT thanh toán"><Tag color={payment.status === 'paid' ? 'green' : 'orange'}>{payment.status}</Tag></Descriptions.Item>}
                 </Descriptions>
+                <Space style={{ marginTop: 16 }} wrap>
+                    {order.status === 'Pending' && order.paymentMethod === 'COD' ? (
+                        <Button danger onClick={handleCancelOrder}>Hủy đơn</Button>
+                    ) : null}
+                    {order.status === 'Pending' && order.paymentMethod === 'VNPay' && payment?.status === 'pending' ? (
+                        <Button type="primary" onClick={handlePayAgain}>Thanh toán lại VNPay</Button>
+                    ) : null}
+                </Space>
                 <Divider />
                 <Table dataSource={order.items} columns={columns} pagination={false} rowKey={(r, i) => i} />
                 <div style={{ textAlign: 'right', marginTop: 16, padding: 16, background: '#f0fdf4', borderRadius: 8 }}>

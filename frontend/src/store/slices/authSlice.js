@@ -42,10 +42,12 @@ export const fetchMe = createAsyncThunk('auth/fetchMe', async (_, { rejectWithVa
         const res = await api.get('/auth/me');
         localStorage.setItem('user', JSON.stringify(res.data));
         return res.data;
-    } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        return rejectWithValue('Not logged in');
+    } catch (err) {
+        if (err.response?.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+        }
+        return rejectWithValue(err.response?.data?.message || 'Not logged in');
     }
 });
 
@@ -71,7 +73,14 @@ const authSlice = createSlice({
         error: null
     },
     reducers: {
-        clearError: (state) => { state.error = null; }
+        clearError: (state) => { state.error = null; },
+        logoutLocal: (state) => {
+            state.user = null;
+            state.token = null;
+            state.loading = false;
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+        }
     },
     extraReducers: (builder) => {
         builder
@@ -101,8 +110,15 @@ const authSlice = createSlice({
                 state.loading = false;
                 state.error = action.payload;
             })
-            .addCase(fetchMe.fulfilled, (state, action) => { state.user = action.payload; })
-            .addCase(fetchMe.rejected, (state) => { state.user = null; state.token = null; })
+            .addCase(fetchMe.pending, (state) => { state.loading = true; })
+            .addCase(fetchMe.fulfilled, (state, action) => { state.loading = false; state.user = action.payload; })
+            .addCase(fetchMe.rejected, (state) => {
+                state.loading = false;
+                if (!localStorage.getItem('token')) {
+                    state.user = null;
+                    state.token = null;
+                }
+            })
             .addCase(logoutUser.fulfilled, (state) => {
                 state.user = null;
                 state.token = null;
@@ -110,5 +126,5 @@ const authSlice = createSlice({
     }
 });
 
-export const { clearError } = authSlice.actions;
+export const { clearError, logoutLocal } = authSlice.actions;
 export default authSlice.reducer;

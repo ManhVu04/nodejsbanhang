@@ -47,6 +47,10 @@ module.exports = {
                 res.status(401).send({ message: 'ban chua dang nhap' });
                 return;
             }
+            if (user.isActive === false) {
+                res.status(401).send({ message: 'tai khoan da bi vo hieu hoa' });
+                return;
+            }
 
             req.user = user;
             next();

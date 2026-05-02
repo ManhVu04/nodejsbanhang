@@ -4,6 +4,8 @@ let { CheckLogin, CheckRole } = require('../utils/authHandler');
 let returnRequestModel = require('../schemas/returnRequests');
 let orderModel = require('../schemas/orders');
 let paymentModel = require('../schemas/payments');
+let inventoryModel = require('../schemas/inventories');
+let inventoryLogModel = require('../schemas/inventoryLogs');
 let mongoose = require('mongoose');
 let { logAuditAction, getClientIpAddress } = require('../utils/auditHandler');
 
@@ -206,27 +208,72 @@ router.put('/:id/review', adminGuard, async function (req, res) {
         }
 
         if (status === 'Refunded') {
-            let refundAmount = request.approvedAmount > 0 ? request.approvedAmount : request.requestedAmount;
-            request.approvedAmount = Math.min(refundAmount, request.order.totalPrice);
-            request.refundTransactionId = String(refundTransactionId || '').trim();
+            let session = await mongoose.startSession();
+            session.startTransaction();
+            try {
+                let refundAmount = request.approvedAmount > 0 ? request.approvedAmount : request.requestedAmount;
+                request.approvedAmount = Math.min(refundAmount, request.order.totalPrice);
+                request.refundTransactionId = String(refundTransactionId || '').trim();
 
-            let payment = await paymentModel.findOne({ order: request.order._id });
-            if (payment) {
-                payment.status = 'refunded';
-                payment.providerResponse = {
-                    ...payment.providerResponse,
-                    refundAmount: request.approvedAmount,
-                    refundAt: new Date().toISOString(),
-                    refundTransactionId: request.refundTransactionId
-                };
-                await payment.save();
+                let payment = await paymentModel.findOne({ order: request.order._id }).session(session);
+                let paymentBefore = payment ? payment.toObject() : null;
+                if (payment) {
+                    payment.status = 'refunded';
+                    payment.providerResponse = {
+                        ...payment.providerResponse,
+                        refundAmount: request.approvedAmount,
+                        refundAt: new Date().toISOString(),
+                        refundTransactionId: request.refundTransactionId
+                    };
+                    await payment.save({ session });
+                }
+
+                for (let item of request.order.items || []) {
+                    let productId = item.product?._id || item.product;
+                    await inventoryModel.findOneAndUpdate(
+                        { product: productId },
+                        { $inc: { stock: item.quantity, soldCount: -item.quantity } },
+                        { session }
+                    );
+                    await new inventoryLogModel({
+                        product: productId,
+                        type: 'IN',
+                        quantity: item.quantity,
+                        reason: `Refund return #${request._id}`,
+                        order: request.order._id,
+                        performedBy: req.user._id
+                    }).save({ session });
+                }
+
+                request.order.afterSaleStatus = 'Refunded';
+                await request.order.save({ session });
+                await request.save({ session });
+                await session.commitTransaction();
+                await session.endSession();
+
+                if (payment) {
+                    await logAuditAction({
+                        action: 'PAYMENT_REFUND',
+                        adminId: req.user?._id,
+                        resourceType: 'payment',
+                        resourceId: payment._id,
+                        before: paymentBefore,
+                        after: payment.toObject(),
+                        description: `Refunded payment for return request ${request._id}`,
+                        ipAddress: getClientIpAddress(req),
+                        success: true
+                    });
+                }
+            } catch (error) {
+                await session.abortTransaction();
+                await session.endSession();
+                throw error;
             }
-
-            request.order.afterSaleStatus = 'Refunded';
-            await request.order.save();
         }
 
-        await request.save();
+        if (status !== 'Refunded') {
+            await request.save();
+        }
 
         let populated = await returnRequestModel.findById(request._id)
             .populate('order', 'status totalPrice createdAt afterSaleStatus')

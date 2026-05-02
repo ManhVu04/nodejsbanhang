@@ -11,6 +11,12 @@ export default function VNPayReturnPage() {
 
     useEffect(() => {
         const params = Object.fromEntries(searchParams.entries());
+        if (!params.vnp_TxnRef || !params.vnp_SecureHash) {
+            setResult({ code: '98', message: 'Liên kết thanh toán không hợp lệ' });
+            setLoading(false);
+            return;
+        }
+
         api.get('/vnpay/vnpay-return', { params })
             .then(res => setResult(res.data))
             .catch(() => setResult({ code: '99', message: 'Lỗi xử lý thanh toán' }))
@@ -28,8 +34,7 @@ export default function VNPayReturnPage() {
                 title={isSuccess ? 'Thanh toán thành công!' : 'Thanh toán thất bại'}
                 subTitle={result?.message}
                 extra={[
-                    <Button type="primary" key="orders" onClick={() => navigate('/orders')}
-                        style={{ borderRadius: 8, background: '#764ba2', border: 'none' }}>
+                    <Button type="primary" key="orders" onClick={() => navigate('/orders')} style={{ borderRadius: 8 }}>
                         Xem đơn hàng
                     </Button>,
                     <Button key="home" onClick={() => navigate('/')} style={{ borderRadius: 8 }}>

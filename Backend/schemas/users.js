@@ -61,6 +61,10 @@ const userSchema = new mongoose.Schema(
     lockTime: {
       type: Date
     },
+    isActive: {
+      type: Boolean,
+      default: true
+    },
     isDeleted: {
       type: Boolean,
       default: false

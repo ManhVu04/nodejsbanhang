@@ -34,8 +34,8 @@ export default function DashboardPage() {
             api.get('/dashboard/top-products?limit=5'),
             api.get('/dashboard/order-stats'),
             api.get('/dashboard/recent-orders'),
-            api.get('/inventories?limit=200'),
-            api.get('/users'),
+            api.get('/dashboard/low-stock?threshold=5&limit=5'),
+            api.get('/users?limit=5&sort=-createdAt'),
             api.get('/returns/admin/all?status=Requested&limit=1'),
             api.get('/returns/admin/all?status=Refunded&limit=1'),
         ]).then(([s, r, t, os, ro, inv, users, pendRet, refRet]) => {
@@ -45,16 +45,10 @@ export default function DashboardPage() {
             setOrderStats(os.data);
             setRecentOrders(ro.data);
 
-            const allInv = inv.data?.inventories || [];
-            const low = allInv
-                .filter((i) => i.stock <= 5)
-                .sort((a, b) => a.stock - b.stock)
-                .slice(0, 5);
-            setLowStock(low);
+            setLowStock(Array.isArray(inv.data) ? inv.data : []);
 
-            const allUsers = Array.isArray(users.data) ? users.data : [];
-            const sorted = [...allUsers].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
-            setRecentUsers(sorted);
+            const allUsers = Array.isArray(users.data?.users) ? users.data.users : [];
+            setRecentUsers(allUsers);
 
             setPendingReturns(pendRet.data?.total || 0);
             setRefundedReturns(refRet.data?.total || 0);

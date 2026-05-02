@@ -76,6 +76,16 @@ export default function VouchersManagePage() {
         }
     };
 
+    const handleToggleActive = async (record, isActive) => {
+        try {
+            await api.put(`/vouchers/${record._id}`, { isActive });
+            message.success(isActive ? 'Đã kích hoạt voucher' : 'Đã tắt voucher');
+            fetchVouchers();
+        } catch (error) {
+            message.error(error.response?.data?.message || 'Không thể cập nhật voucher');
+        }
+    };
+
     const handleDelete = async (id) => {
         try {
             await api.delete(`/vouchers/${id}`);
@@ -87,21 +97,19 @@ export default function VouchersManagePage() {
     };
 
     const columns = [
-        { title: 'Code', dataIndex: 'code', width: 140, render: (code) => <Tag color="blue">{code}</Tag> },
-        { title: 'Loai', dataIndex: 'discountType', width: 100 },
+        { title: 'Mã', dataIndex: 'code', width: 140, render: (code) => <Tag color="blue">{code}</Tag> },
+        { title: 'Loại', dataIndex: 'discountType', width: 100 },
         {
-            title: 'Gia tri',
+            title: 'Giá trị',
             dataIndex: 'discountValue',
             width: 100,
             render: (_, record) => record.discountType === 'PERCENT' ? `${record.discountValue}%` : `${record.discountValue?.toLocaleString('vi-VN')}d`
         },
-        { title: 'Da dung', dataIndex: 'usedCount', width: 90 },
+        { title: 'Đã dùng', dataIndex: 'usedCount', width: 90 },
         {
-            title: 'Trang thai',
-            width: 120,
-            render: (_, record) => (
-                <Tag color={record.isActive ? 'green' : 'red'}>{record.isActive ? 'Active' : 'Inactive'}</Tag>
-            )
+            title: 'Trạng thái',
+            width: 130,
+            render: (_, record) => <Switch checked={record.isActive} onChange={(checked) => handleToggleActive(record, checked)} checkedChildren="Bật" unCheckedChildren="Tắt" />
         },
         {
             title: '',
@@ -130,44 +138,44 @@ export default function VouchersManagePage() {
             </Card>
 
             <Modal
-                title={editItem ? 'Cap nhat voucher' : 'Tao voucher'}
+                title={editItem ? 'Cập nhật voucher' : 'Tạo voucher'}
                 open={openModal}
                 onCancel={() => setOpenModal(false)}
                 onOk={handleSave}
-                okText="Luu"
+                okText="Lưu"
             >
                 <Form form={form} layout="vertical">
-                    <Form.Item name="code" label="Ma voucher" rules={[{ required: true }]}>
+                    <Form.Item name="code" label="Mã voucher" rules={[{ required: true }]}>
                         <Input placeholder="VD: GIAM10" />
                     </Form.Item>
-                    <Form.Item name="description" label="Mo ta">
+                    <Form.Item name="description" label="Mô tả">
                         <Input.TextArea rows={2} />
                     </Form.Item>
-                    <Form.Item name="discountType" label="Loai giam" rules={[{ required: true }]}>
-                        <Select options={[{ value: 'PERCENT', label: 'Phan tram' }, { value: 'FIXED', label: 'So tien co dinh' }]} />
+                    <Form.Item name="discountType" label="Loại giảm" rules={[{ required: true }]}>
+                        <Select options={[{ value: 'PERCENT', label: 'Phần trăm' }, { value: 'FIXED', label: 'Số tiền cố định' }]} />
                     </Form.Item>
-                    <Form.Item name="discountValue" label="Gia tri giam" rules={[{ required: true }]}>
+                    <Form.Item name="discountValue" label="Giá trị giảm" rules={[{ required: true }]}>
                         <InputNumber min={0} style={{ width: '100%' }} />
                     </Form.Item>
-                    <Form.Item name="minOrderValue" label="Don toi thieu">
+                    <Form.Item name="minOrderValue" label="Đơn tối thiểu">
                         <InputNumber min={0} style={{ width: '100%' }} />
                     </Form.Item>
-                    <Form.Item name="maxDiscount" label="Giam toi da">
+                    <Form.Item name="maxDiscount" label="Giảm tối đa">
                         <InputNumber min={0} style={{ width: '100%' }} />
                     </Form.Item>
-                    <Form.Item name="usageLimit" label="Tong luot su dung">
+                    <Form.Item name="usageLimit" label="Tổng lượt sử dụng">
                         <InputNumber min={0} style={{ width: '100%' }} />
                     </Form.Item>
-                    <Form.Item name="perUserLimit" label="Luot dung / user">
+                    <Form.Item name="perUserLimit" label="Lượt dùng / người">
                         <InputNumber min={1} style={{ width: '100%' }} />
                     </Form.Item>
-                    <Form.Item name="startsAt" label="Bat dau">
+                    <Form.Item name="startsAt" label="Bắt đầu">
                         <DatePicker showTime style={{ width: '100%' }} />
                     </Form.Item>
-                    <Form.Item name="expiresAt" label="Ket thuc">
+                    <Form.Item name="expiresAt" label="Kết thúc">
                         <DatePicker showTime style={{ width: '100%' }} />
                     </Form.Item>
-                    <Form.Item name="isActive" label="Kich hoat" valuePropName="checked">
+                    <Form.Item name="isActive" label="Kích hoạt" valuePropName="checked">
                         <Switch />
                     </Form.Item>
                 </Form>

@@ -1,4 +1,4 @@
-import { Form, Input, Button, Card, Typography, message } from 'antd';
+import { Form, Input, Button, Card, Typography, message, Alert } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
@@ -11,6 +11,24 @@ export default function ResetPasswordPage() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const token = searchParams.get('token') || '';
+
+    if (!token) {
+        return (
+            <section className="auth-page" aria-label="Đặt lại mật khẩu">
+                <Card className="auth-card" bodyStyle={{ padding: 32 }}>
+                    <Alert
+                        type="error"
+                        showIcon
+                        message="Liên kết không hợp lệ"
+                        description="Vui lòng yêu cầu gửi lại liên kết đặt mật khẩu."
+                    />
+                    <Button type="primary" block style={{ marginTop: 16 }} onClick={() => navigate('/forgot-password')}>
+                        Gửi lại liên kết
+                    </Button>
+                </Card>
+            </section>
+        );
+    }
 
     const onFinish = async (values) => {
         if (!token) {

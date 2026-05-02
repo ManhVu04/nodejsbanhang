@@ -1,4 +1,4 @@
-import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Space, Tag, Popconfirm, Card, Upload, Image } from 'antd';
+import { Table, Button, Modal, Form, Input, InputNumber, Select, message, Space, Tag, Popconfirm, Card, Upload, Image, Typography } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import { useEffect, useState, useCallback } from 'react';
 import api, { resolveImageUrl } from '../../utils/api';

@@ -8,6 +8,8 @@ export default function UsersManagePage() {
     const [users, setUsers] = useState([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
+    const [search, setSearch] = useState('');
+    const [activeFilter, setActiveFilter] = useState();
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState(null);
@@ -22,18 +24,18 @@ export default function UsersManagePage() {
         const load = async () => {
             setLoading(true);
             try {
-                const res = await api.get('/users', { params: { page, limit: 10 } });
+                const res = await api.get('/users', { params: { page, limit: 10, search, isActive: activeFilter } });
                 if (cancelled) return;
-                const data = Array.isArray(res.data) ? res.data : [];
+                const data = Array.isArray(res.data?.users) ? res.data.users : [];
                 setUsers(data);
-                setTotal(data.length);
+                setTotal(Number(res.data?.total || data.length));
             } finally {
                 if (!cancelled) setLoading(false);
             }
         };
         load();
         return () => { cancelled = true; };
-    }, [page, refreshKey]);
+    }, [page, search, activeFilter, refreshKey]);
 
     useEffect(() => {
         api.get('/roles').then((res) => setRoles(Array.isArray(res.data) ? res.data : []));
@@ -52,7 +54,7 @@ export default function UsersManagePage() {
             email: user.email,
             fullName: user.fullName || '',
             role: user.role?._id || user.role,
-            isActive: !user.isDeleted,
+            isActive: user.isActive !== false,
         });
         setModalOpen(true);
     };
@@ -65,7 +67,7 @@ export default function UsersManagePage() {
                     fullName: values.fullName,
                     email: values.email,
                     role: values.role,
-                    isDeleted: !values.isActive,
+                    isActive: values.isActive,
                 });
                 message.success('Cập nhật người dùng thành công');
             } else {
@@ -83,6 +85,16 @@ export default function UsersManagePage() {
         } catch (err) {
             const msg = err?.response?.data?.message || err.message;
             if (msg) message.error(msg);
+        }
+    };
+
+    const handleToggleActive = async (record, isActive) => {
+        try {
+            await api.patch(`/users/${record._id}/active`, { isActive });
+            message.success(isActive ? 'Đã kích hoạt người dùng' : 'Đã vô hiệu hóa người dùng');
+            refreshUsers();
+        } catch (err) {
+            message.error(err?.response?.data?.message || 'Cập nhật trạng thái thất bại');
         }
     };
 
@@ -117,6 +129,11 @@ export default function UsersManagePage() {
             },
         },
         {
+            title: 'Trạng thái',
+            width: 130,
+            render: (_, r) => <Switch checked={r.isActive !== false} onChange={(checked) => handleToggleActive(r, checked)} checkedChildren="Bật" unCheckedChildren="Tắt" />,
+        },
+        {
             title: 'Ngày tạo',
             dataIndex: 'createdAt',
             render: (d) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—'),
@@ -149,6 +166,25 @@ export default function UsersManagePage() {
                 actions={<Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm người dùng</Button>}
             />
             <Card className="admin-card" bordered={false}>
+                <Space style={{ marginBottom: 16 }} wrap>
+                    <Input.Search
+                        allowClear
+                        placeholder="Tìm tên, email, họ tên"
+                        onSearch={(value) => { setPage(1); setSearch(value); }}
+                        style={{ width: 260 }}
+                    />
+                    <Select
+                        allowClear
+                        placeholder="Trạng thái"
+                        value={activeFilter}
+                        onChange={(value) => { setPage(1); setActiveFilter(value); }}
+                        style={{ width: 160 }}
+                        options={[
+                            { value: true, label: 'Đang hoạt động' },
+                            { value: false, label: 'Đã vô hiệu hóa' },
+                        ]}
+                    />
+                </Space>
                 <Table
                     dataSource={users}
                     columns={columns}

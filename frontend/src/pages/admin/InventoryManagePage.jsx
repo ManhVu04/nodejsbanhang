@@ -9,6 +9,8 @@ export default function InventoryManagePage() {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState('add');
+    const [search, setSearch] = useState('');
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [inventoryPage, setInventoryPage] = useState(1);
     const [inventoryPageSize, setInventoryPageSize] = useState(10);
@@ -21,7 +23,8 @@ export default function InventoryManagePage() {
             const res = await api.get('/inventories', {
                 params: {
                     page,
-                    limit
+                    limit,
+                    search
                 }
             });
             const payload = res?.data || {};
@@ -41,7 +44,7 @@ export default function InventoryManagePage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [search]);
 
     const fetchLogs = useCallback(async () => {
         try {
@@ -58,6 +61,22 @@ export default function InventoryManagePage() {
     }, [fetchInventories, fetchLogs, inventoryPageSize]);
 
     const openAddStock = (product) => {
+        if (!product?._id) {
+            message.error('Sản phẩm không hợp lệ');
+            return;
+        }
+        setModalMode('add');
+        setSelectedProduct(product);
+        form.resetFields();
+        setModalOpen(true);
+    };
+
+    const openAdjustStock = (product) => {
+        if (!product?._id) {
+            message.error('Sản phẩm không hợp lệ');
+            return;
+        }
+        setModalMode('adjust');
         setSelectedProduct(product);
         form.resetFields();
         setModalOpen(true);
@@ -66,8 +85,13 @@ export default function InventoryManagePage() {
     const handleAddStock = async () => {
         try {
             let values = await form.validateFields();
-            await api.post(`/inventories/${selectedProduct._id}/stock`, values);
-            message.success('Nhập kho thành công');
+            if (modalMode === 'adjust') {
+                await api.post(`/inventories/${selectedProduct._id}/adjust`, values);
+                message.success('Điều chỉnh tồn kho thành công');
+            } else {
+                await api.post(`/inventories/${selectedProduct._id}/stock`, values);
+                message.success('Nhập kho thành công');
+            }
             setModalOpen(false);
             await fetchInventories(inventoryPage, inventoryPageSize);
             await fetchLogs();
@@ -97,8 +121,10 @@ export default function InventoryManagePage() {
         {
             title: '', width: 100,
             render: (_, r) => (
-                <Button size="small" icon={<PlusOutlined />} onClick={() => openAddStock(r.product)}
-                    style={{ borderRadius: 6 }}>Nhập kho</Button>
+                <>
+                    <Button size="small" icon={<PlusOutlined />} onClick={() => openAddStock(r.product)} style={{ borderRadius: 6 }}>Nhập kho</Button>
+                    <Button size="small" onClick={() => openAdjustStock(r.product)} style={{ borderRadius: 6, marginLeft: 6 }}>Điều chỉnh</Button>
+                </>
             )
         }
     ];
@@ -127,6 +153,12 @@ export default function InventoryManagePage() {
                     key: 'inventory', label: 'Tồn kho',
                     children: (
                         <Card className="admin-card" bordered={false}>
+                            <Input.Search
+                                allowClear
+                                placeholder="Tìm sản phẩm"
+                                onSearch={(value) => { setInventoryPage(1); setSearch(value); }}
+                                style={{ width: 260, marginBottom: 16 }}
+                            />
                             <Table
                                 dataSource={inventories}
                                 columns={invColumns}
@@ -158,11 +190,11 @@ export default function InventoryManagePage() {
                 }
             ]} />
 
-            <Modal title={`Nhập kho: ${selectedProduct?.title || ''}`} open={modalOpen}
-                onCancel={() => setModalOpen(false)} onOk={handleAddStock} okText="Nhập kho">
+            <Modal title={`${modalMode === 'adjust' ? 'Điều chỉnh' : 'Nhập kho'}: ${selectedProduct?.title || ''}`} open={modalOpen}
+                onCancel={() => setModalOpen(false)} onOk={handleAddStock} okText={modalMode === 'adjust' ? 'Điều chỉnh' : 'Nhập kho'}>
                 <Form form={form} layout="vertical">
-                    <Form.Item name="quantity" label="Số lượng" rules={[{ required: true }]}>
-                        <InputNumber min={1} style={{ width: '100%' }} />
+                    <Form.Item name={modalMode === 'adjust' ? 'delta' : 'quantity'} label={modalMode === 'adjust' ? 'Mức điều chỉnh (+/-)' : 'Số lượng'} rules={[{ required: true }]}>
+                        <InputNumber min={modalMode === 'adjust' ? undefined : 1} style={{ width: '100%' }} />
                     </Form.Item>
                     <Form.Item name="reason" label="Lý do">
                         <Input placeholder="Nhập kho đợt mới, v.v." />

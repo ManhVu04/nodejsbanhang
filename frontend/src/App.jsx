@@ -2,7 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { useEffect, Suspense, lazy } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Spin } from 'antd';
-import { fetchMe } from './store/slices/authSlice';
+import { fetchMe, logoutLocal } from './store/slices/authSlice';
 import { fetchCart, clearCart } from './store/slices/cartSlice';
 
 import AppLayout from './components/AppLayout';
@@ -46,6 +46,12 @@ function AppInit() {
             dispatch(clearCart());
         }
     }, [dispatch, token]);
+
+    useEffect(() => {
+        const handleAuthLogout = () => dispatch(logoutLocal());
+        window.addEventListener('auth:logout', handleAuthLogout);
+        return () => window.removeEventListener('auth:logout', handleAuthLogout);
+    }, [dispatch]);
 
     return null;
 }

@@ -20,6 +20,22 @@ function normalizeDiscountType(discountTypeValue) {
     return String(discountTypeValue || '').trim().toUpperCase();
 }
 
+function buildVoucherUpdatePayload(body) {
+    let payload = {};
+    if (Object.prototype.hasOwnProperty.call(body, 'code')) payload.code = normalizeVoucherCode(body.code);
+    if (Object.prototype.hasOwnProperty.call(body, 'description')) payload.description = body.description || '';
+    if (Object.prototype.hasOwnProperty.call(body, 'discountType')) payload.discountType = normalizeDiscountType(body.discountType);
+    if (Object.prototype.hasOwnProperty.call(body, 'discountValue')) payload.discountValue = Number(body.discountValue || 0);
+    if (Object.prototype.hasOwnProperty.call(body, 'minOrderValue')) payload.minOrderValue = Number(body.minOrderValue || 0);
+    if (Object.prototype.hasOwnProperty.call(body, 'maxDiscount')) payload.maxDiscount = body.maxDiscount === null || body.maxDiscount === undefined || body.maxDiscount === '' ? null : Number(body.maxDiscount);
+    if (Object.prototype.hasOwnProperty.call(body, 'usageLimit')) payload.usageLimit = body.usageLimit === null || body.usageLimit === undefined || body.usageLimit === '' ? null : Number(body.usageLimit);
+    if (Object.prototype.hasOwnProperty.call(body, 'perUserLimit')) payload.perUserLimit = Number(body.perUserLimit || 1);
+    if (Object.prototype.hasOwnProperty.call(body, 'startsAt')) payload.startsAt = body.startsAt || null;
+    if (Object.prototype.hasOwnProperty.call(body, 'expiresAt')) payload.expiresAt = body.expiresAt || null;
+    if (Object.prototype.hasOwnProperty.call(body, 'isActive')) payload.isActive = body.isActive === true;
+    return payload;
+}
+
 router.get('/validate/:code', async function (req, res) {
     try {
         let code = normalizeVoucherCode(req.params.code);
@@ -156,17 +172,20 @@ router.put('/:id', adminGuard, async function (req, res) {
         }
 
         let beforeData = existingVoucher.toObject();
-        let updateData = { ...req.body };
-        if (typeof updateData.code === 'string') {
-            updateData.code = normalizeVoucherCode(updateData.code);
+        let updateData = buildVoucherUpdatePayload(req.body);
+        if (Object.keys(updateData).length === 0) {
+            return res.status(400).send({ message: 'khong co du lieu cap nhat hop le' });
         }
-        if (updateData.discountType !== undefined) {
-            updateData.discountType = normalizeDiscountType(updateData.discountType);
+        if (updateData.code && updateData.code !== existingVoucher.code) {
+            let usedOrders = await orderModel.countDocuments({ 'voucher.voucherId': existingVoucher._id });
+            if (usedOrders > 0) {
+                return res.status(400).send({ message: 'Khong the doi ma voucher da duoc su dung' });
+            }
         }
 
         let voucher = await voucherModel.findOneAndUpdate(
             { _id: req.params.id, isDeleted: false },
-            updateData,
+            { $set: updateData },
             { new: true }
         );
 

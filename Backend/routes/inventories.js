@@ -115,6 +115,59 @@ router.post('/:productId/stock', CheckLogin, CheckRole(['Admin']), async functio
     }
 });
 
+// POST /:productId/adjust — Adjust stock up/down (admin)
+router.post('/:productId/adjust', CheckLogin, CheckRole(['Admin']), async function (req, res) {
+    try {
+        let { delta, reason } = req.body;
+        delta = Number(delta);
+        if (!Number.isInteger(delta) || delta === 0) {
+            return res.status(400).send({ message: 'Muc dieu chinh khong hop le' });
+        }
+
+        let product = await productModel.findOne({ _id: req.params.productId, isDeleted: false });
+        if (!product) {
+            return res.status(404).send({ message: 'Sản phẩm không tồn tại' });
+        }
+
+        let previousInventory = await inventoryModel.findOne({ product: product._id });
+        let previousStock = Number(previousInventory?.stock || 0);
+        let reserved = Number(previousInventory?.reserved || 0);
+        if (previousStock + delta < reserved) {
+            return res.status(400).send({ message: 'Ton kho sau dieu chinh khong du cho so luong da dat tru' });
+        }
+
+        let inventory = await inventoryModel.findOneAndUpdate(
+            { product: product._id },
+            { $inc: { stock: delta } },
+            { new: true, upsert: true }
+        ).populate('product', 'title sku');
+
+        await new inventoryLogModel({
+            product: product._id,
+            type: delta > 0 ? 'IN' : 'OUT',
+            quantity: Math.abs(delta),
+            reason: reason || 'Dieu chinh ton kho',
+            performedBy: req.user._id
+        }).save();
+
+        await logAuditAction({
+            action: 'INVENTORY_ADJUST_STOCK',
+            adminId: req.user._id,
+            resourceType: 'inventory',
+            resourceId: inventory._id,
+            before: { stock: previousStock },
+            after: { stock: inventory.stock },
+            description: `Adjusted ${delta} units for product "${product.title}"`,
+            ipAddress: getClientIpAddress(req),
+            success: true
+        });
+
+        res.send({ message: 'Da dieu chinh ton kho', inventory });
+    } catch (err) {
+        res.status(400).send({ message: err.message });
+    }
+});
+
 // GET /logs — View inventory logs (admin)
 router.get('/logs', CheckLogin, CheckRole(['Admin']), async function (req, res) {
     try {

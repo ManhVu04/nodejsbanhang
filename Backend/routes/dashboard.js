@@ -5,6 +5,7 @@ let orderModel = require('../schemas/orders');
 let productModel = require('../schemas/products');
 let userModel = require('../schemas/users');
 let inventoryModel = require('../schemas/inventories');
+let roleModel = require('../schemas/roles');
 
 // GET /summary — Summary stats
 router.get('/summary', CheckLogin, CheckRole(['Admin']), async function (req, res) {
@@ -15,7 +16,8 @@ router.get('/summary', CheckLogin, CheckRole(['Admin']), async function (req, re
         ]);
 
         let totalOrders = await orderModel.countDocuments();
-        let totalCustomers = await userModel.countDocuments({ isDeleted: false });
+        let userRole = await roleModel.findOne({ name: { $regex: /^user$/i }, isDeleted: false }).select('_id');
+        let totalCustomers = await userModel.countDocuments({ isDeleted: false, ...(userRole?._id ? { role: userRole._id } : {}) });
         let totalProducts = await productModel.countDocuments({ isDeleted: false });
 
         let pendingOrders = await orderModel.countDocuments({ status: 'Pending' });
@@ -69,6 +71,37 @@ router.get('/revenue', CheckLogin, CheckRole(['Admin']), async function (req, re
         ]);
 
         res.send(revenue);
+    } catch (err) {
+        res.status(400).send({ message: err.message });
+    }
+});
+
+// GET /low-stock — Low available-stock products
+router.get('/low-stock', CheckLogin, CheckRole(['Admin']), async function (req, res) {
+    try {
+        let threshold = Math.max(0, Number.parseInt(req.query.threshold, 10) || 10);
+        let limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+        let inventories = await inventoryModel.find({
+            $expr: {
+                $lte: [
+                    { $subtract: ['$stock', '$reserved'] },
+                    threshold
+                ]
+            }
+        })
+            .populate('product', 'title price images sku isDeleted')
+            .limit(limit * 3);
+
+        inventories = inventories
+            .filter(inv => inv.product && !inv.product.isDeleted)
+            .map(inv => ({
+                ...inv.toObject(),
+                availableStock: Math.max(0, Number(inv.stock || 0) - Number(inv.reserved || 0))
+            }))
+            .sort((a, b) => a.availableStock - b.availableStock)
+            .slice(0, limit);
+
+        res.send(inventories);
     } catch (err) {
         res.status(400).send({ message: err.message });
     }

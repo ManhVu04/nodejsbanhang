@@ -86,9 +86,12 @@ api.interceptors.response.use(
         const message =
             error.response?.data?.message ||
             (typeof error.response?.data === 'string' ? error.response.data : '');
-        if ((status === 401 || status === 404) && message === 'ban chua dang nhap') {
+        if (status === 401 || ((status === 404) && message === 'ban chua dang nhap')) {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('auth:logout'));
+            }
         }
         return Promise.reject(error);
     }
