@@ -1,33 +1,11 @@
 let mongoose = require('mongoose');
 let reservationModel = require('../schemas/reservations');
-let inventoryModel = require('../schemas/inventories');
+let { releaseReservedStock } = require('./inventoryHelper');
 
 const JOB_INTERVAL_MS = 60 * 1000;
 const RESERVATION_BATCH_SIZE = 50;
 
 let reservationExpiryInterval = null;
-
-async function releaseReservedItemsForExpiredReservation(reservation, session) {
-    for (let item of reservation?.items || []) {
-        let updateResult = await inventoryModel.findOneAndUpdate(
-            {
-                product: item?.product,
-                reserved: { $gte: item?.quantity }
-            },
-            {
-                $inc: { reserved: -item?.quantity }
-            },
-            {
-                new: true,
-                session
-            }
-        );
-
-        if (!updateResult) {
-            throw new Error('Khong the giai phong ton dat tru khi expire reservation');
-        }
-    }
-}
 
 async function expireSingleReservation(reservationId, now) {
     let session = await mongoose.startSession();
@@ -45,7 +23,7 @@ async function expireSingleReservation(reservationId, now) {
             return false;
         }
 
-        await releaseReservedItemsForExpiredReservation(reservation, session);
+        await releaseReservedStock(reservation.items, session);
 
         reservation.status = 'expired';
         reservation.expiredAt = now;
@@ -55,9 +33,10 @@ async function expireSingleReservation(reservationId, now) {
         await session.commitTransaction();
         await session.endSession();
         return true;
-    } catch {
+    } catch (err) {
         await session.abortTransaction();
         await session.endSession();
+        console.error(`[reservationExpiryJob] Failed to expire reservation ${reservationId}: ${err.message}`);
         return false;
     }
 }
@@ -78,9 +57,7 @@ async function runReservationExpiryJob() {
             break;
         }
 
-        for (let candidate of candidates) {
-            await expireSingleReservation(candidate?._id, now);
-        }
+        await Promise.all(candidates.map(c => expireSingleReservation(c._id, now)));
 
         if (candidates.length < RESERVATION_BATCH_SIZE) {
             break;
@@ -93,11 +70,12 @@ function startReservationExpiryJob() {
         return;
     }
 
-    runReservationExpiryJob().catch(() => { });
+    let runJob = () => runReservationExpiryJob().catch(err => {
+        console.error(`[reservationExpiryJob] Job error: ${err.message}`);
+    });
 
-    reservationExpiryInterval = setInterval(() => {
-        runReservationExpiryJob().catch(() => { });
-    }, JOB_INTERVAL_MS);
+    runJob();
+    reservationExpiryInterval = setInterval(runJob, JOB_INTERVAL_MS);
 
     if (typeof reservationExpiryInterval?.unref === 'function') {
         reservationExpiryInterval.unref();

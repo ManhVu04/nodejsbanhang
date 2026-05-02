@@ -286,12 +286,11 @@ connectMongo()
     startMongoReconnectLoop();
   });
 
-startReservationExpiryJob();
-startPendingVnpayOrderExpiryJob();
-
 mongoose.connection.on("connected", function () {
   console.log("connected");
   stopMongoReconnectLoop();
+  startReservationExpiryJob();
+  startPendingVnpayOrderExpiryJob();
 });
 mongoose.connection.on("disconnected", function () {
   console.log("disconnected");
