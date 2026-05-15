@@ -83,7 +83,19 @@ const authApiRateLimiter = rateLimit({
 });
 
 // Security & CORS
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://accounts.google.com", "https://apis.google.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://accounts.google.com"],
+      frameSrc: ["'self'", "https://accounts.google.com", "https://sandbox.vnpayment.vn"],
+      fontSrc: ["'self'", "https:", "data:"],
+    }
+  }
+}));
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -102,8 +114,8 @@ app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "ejs");
 
 app.use(logger("dev"));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 app.use(
   mongoSanitize({
     replaceWith: "_",
@@ -124,6 +136,7 @@ app.use("/api/v1/auth/login", authApiRateLimiter);
 app.use("/api/v1/auth/google/login", authApiRateLimiter);
 app.use("/api/v1/auth/forgotpassword", authApiRateLimiter);
 app.use("/api/v1/auth/resetpassword", authApiRateLimiter);
+app.use("/api/v1/vouchers/validate", authApiRateLimiter);
 
 // Routes
 app.use("/", indexRouter);

@@ -3,6 +3,7 @@ let mongoose = require('mongoose');
 let router = express.Router();
 let reviewModel = require('../schemas/reviews');
 let productModel = require('../schemas/products');
+let orderModel = require('../schemas/orders');
 let { CheckLogin } = require('../utils/authHandler');
 
 async function getReviewStats(productId) {
@@ -56,6 +57,7 @@ async function syncProductRating(productId) {
         averageRating: stats.averageRating,
         reviewCount: stats.reviewCount
     });
+    return stats;
 }
 
 router.get('/product/:productId', async function (req, res) {
@@ -133,6 +135,15 @@ router.post('/product/:productId', CheckLogin, async function (req, res) {
             return res.status(404).send({ message: 'San pham khong ton tai' });
         }
 
+        let hasPurchased = await orderModel.exists({
+            user: req.user._id,
+            'items.product': productId,
+            status: 'Delivered'
+        });
+        if (!hasPurchased) {
+            return res.status(403).send({ message: 'Ban can mua va nhan san pham truoc khi danh gia' });
+        }
+
         let review = await reviewModel.findOne({ product: productId, user: req.user._id });
         if (review) {
             review.rating = rating;
@@ -149,8 +160,7 @@ router.post('/product/:productId', CheckLogin, async function (req, res) {
             await review.save();
         }
 
-        await syncProductRating(productId);
-        let stats = await getReviewStats(productId);
+        let stats = await syncProductRating(productId);
 
         let populated = await reviewModel.findById(review._id).populate('user', 'username fullName avatarUrl');
         return res.send({ message: 'Da gui danh gia', review: populated, stats });

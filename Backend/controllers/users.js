@@ -1,6 +1,9 @@
 let userModel = require("../schemas/users");
 let bcrypt = require('bcrypt');
 
+const MAX_LOGIN_ATTEMPTS = 10;
+const LOCK_DURATION_MS = 15 * 60 * 1000;
+
 module.exports = {
     CreateAnUser: async function (username, password, email, role,session,
         fullName, avatarUrl, status, loginCount
@@ -48,15 +51,21 @@ module.exports = {
         }
         return false
     },
+    VerifyPassword: async function (user, password) {
+        return bcrypt.compare(password, user.password);
+    },
     CompareLogin: async function (user, password) {
-        if (bcrypt.compareSync(password, user.password)) {
-            user.loginCount = 0;
-            await user.save()
+        if (await this.VerifyPassword(user, password)) {
+            if (user.loginCount !== 0 || user.lockTime) {
+                user.loginCount = 0;
+                user.lockTime = undefined;
+                await user.save();
+            }
             return user;
         }
         user.loginCount++;
-        if (user.loginCount == 3) {
-            user.lockTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        if (user.loginCount >= MAX_LOGIN_ATTEMPTS) {
+            user.lockTime = new Date(Date.now() + LOCK_DURATION_MS);
             user.loginCount = 0;
         }
         await user.save()
@@ -67,8 +76,15 @@ module.exports = {
             let user = await userModel.findOne({
                 _id: id,
                 isDeleted: false
-            }).populate('role')
+            }).select('-password -forgotPasswordToken -forgotPasswordTokenExp').populate('role')
             return user;
+        } catch (error) {
+            return false;
+        }
+    },
+    GetUserByIdWithPassword: async function (id) {
+        try {
+            return await userModel.findOne({ _id: id, isDeleted: false });
         } catch (error) {
             return false;
         }

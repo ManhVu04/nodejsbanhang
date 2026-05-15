@@ -37,10 +37,6 @@ module.exports = {
 
         try {
             let result = jwt.verify(key, jwtSecret);
-            if (result.exp * 1000 < Date.now()) {
-                res.status(401).send({ message: 'ban chua dang nhap' });
-                return;
-            }
 
             let user = await userController.GetUserById(result.id);
             if (!user) {

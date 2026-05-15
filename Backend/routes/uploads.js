@@ -144,8 +144,8 @@ router.post('/avatar', CheckLogin
     })
 
 router.get('/:filename', function (req, res, next) {
-    let filename = path.join(__dirname, '../uploads', req.params.filename)
-    res.sendFile(filename)
+    let filePath = path.join(__dirname, '../uploads', path.basename(req.params.filename))
+    res.sendFile(filePath)
 })
 
 router.post('/multiple_images', adminGuard

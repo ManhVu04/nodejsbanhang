@@ -5,7 +5,6 @@ let roleModel = require('../schemas/roles')
 let { RegisterValidator, validationResult, ChangPasswordValidator } = require('../utils/validatorHandler')
 let { CheckLogin } = require('../utils/authHandler')
 let jwt = require('jsonwebtoken')
-let bcrypt = require('bcrypt')
 let crypto = require('crypto')
 let { OAuth2Client } = require('google-auth-library')
 let { sendMail } = require('../utils/mailHandler')
@@ -282,8 +281,11 @@ router.post('/changepassword', CheckLogin,
     ChangPasswordValidator, validationResult
     , async function (req, res, next) {
         let { newpassword, oldpassword } = req.body;
-        let user = req.user;
-        if (bcrypt.compareSync(oldpassword, user.password)) {
+        let user = await userController.GetUserByIdWithPassword(req.user._id);
+        if (!user) {
+            return res.status(401).send({ message: "ban chua dang nhap" });
+        }
+        if (await userController.VerifyPassword(user, oldpassword)) {
             user.password = newpassword;
             await user.save();
             res.send({ message: "doi pass thanh cong" })

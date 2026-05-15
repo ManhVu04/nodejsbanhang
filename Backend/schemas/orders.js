@@ -103,4 +103,6 @@ let orderSchema = mongoose.Schema(
   },
 );
 
+orderSchema.index({ user: 1, 'items.product': 1, status: 1 });
+
 module.exports = mongoose.model("order", orderSchema);

@@ -1,6 +1,7 @@
 let multer = require("multer");
 let path = require('path')
 let fs = require('fs')
+let crypto = require('crypto')
 
 let uploadDirectory = path.join(__dirname, '../uploads');
 fs.mkdirSync(uploadDirectory, { recursive: true });
@@ -59,9 +60,8 @@ let storage = multer.diskStorage({
         cb(null, uploadDirectory)
     },
     filename: function (req, file, cb) {
-        //name + ext
-        let ext = path.extname(file.originalname);//wtdd.png->.png
-        let fileName = Date.now() + '-' + Math.round(Math.random() * 1000_000_000) + ext;
+        let ext = path.extname(file.originalname);
+        let fileName = Date.now() + '-' + crypto.randomUUID() + ext;
         cb(null, fileName)
     }
 })

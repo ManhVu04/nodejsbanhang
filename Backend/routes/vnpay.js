@@ -26,6 +26,10 @@ function sortObject(obj) {
     return sorted;
 }
 
+function verifyVnpayAmount(vnpParams, payment) {
+    return Number(vnpParams['vnp_Amount']) === payment.amount * 100;
+}
+
 // POST /create-payment-url — Generate VNPay payment URL
 router.post('/create-payment-url', CheckLogin, async function (req, res) {
     try {
@@ -117,6 +121,10 @@ router.get('/vnpay-return', async function (req, res) {
             // Payment success
             let payment = await paymentModel.findOne({ transactionId: txnRef });
             if (payment) {
+                if (!verifyVnpayAmount(vnpParams, payment)) {
+                    return res.send({ code: '04', message: 'So tien khong khop' });
+                }
+
                 let order = await orderModel.findById(payment.order);
                 let canMarkPaid =
                     payment.status === 'pending' &&
@@ -195,6 +203,10 @@ router.get('/vnpay-ipn', async function (req, res) {
 
             if (payment.status === 'paid' || payment.status === 'refunded') {
                 return res.status(200).json({ RspCode: '02', Message: 'Already processed' });
+            }
+
+            if (!verifyVnpayAmount(vnpParams, payment)) {
+                return res.status(200).json({ RspCode: '04', Message: 'Invalid amount' });
             }
 
             if (responseCode === '00') {
