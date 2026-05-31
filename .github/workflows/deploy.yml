@@ -1,9 +1,11 @@
 name: Build And Deploy
 
+# CI/CD tu dong da tam tat. Chi chay thu cong qua "Run workflow" (workflow_dispatch).
+# Khi can bat lai tu dong moi lan push, bo comment khoi "push" ben duoi.
 on:
-  push:
-    branches:
-      - main
+  # push:
+  #   branches:
+  #     - main
   workflow_dispatch:
 
 jobs:
