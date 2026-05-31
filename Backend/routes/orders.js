@@ -17,7 +17,8 @@ let {
   normalizeVoucherCode,
   validateVoucherForOrder,
 } = require("../utils/voucherHandler");
-let { deductAvailableStock } = require("../utils/inventoryHelper");
+let { deductAvailableStock, getAvailableStock } = require("../utils/inventoryHelper");
+let { clampPagination } = require("../utils/pagination");
 
 const ORDER_STATUS_TRANSITIONS = {
   Pending: ["Paid", "Shipped", "Cancelled"],
@@ -56,13 +57,6 @@ function resolveShippingPhoneNumber(selectedAddress, rawShippingPhoneNumber) {
   }
 
   return String(rawShippingPhoneNumber || "").trim();
-}
-
-function getAvailableStock(inventoryItem) {
-  return Math.max(
-    0,
-    Number(inventoryItem?.stock || 0) - Number(inventoryItem?.reserved || 0),
-  );
 }
 
 function getCartProductId(cartItem) {
@@ -261,7 +255,7 @@ router.post("/", CheckLogin, async function (req, res) {
       subTotalPrice: subTotalPrice,
       discountAmount: discountAmount,
       totalPrice: totalPrice,
-      status: paymentMethod === "COD" ? "Pending" : "Pending",
+      status: "Pending",
       paymentMethod: paymentMethod,
       shippingAddress: resolvedShippingAddress,
       shippingPhoneNumber: resolvedShippingPhoneNumber,
@@ -283,7 +277,7 @@ router.post("/", CheckLogin, async function (req, res) {
       user: user._id,
       method: paymentMethod,
       amount: totalPrice,
-      status: paymentMethod === "COD" ? "pending" : "pending",
+      status: "pending",
       idempotencyKey: idempotencyKey,
     });
     await newPayment.save({ session });
@@ -325,23 +319,25 @@ router.post("/", CheckLogin, async function (req, res) {
 // GET / — User's order history
 router.get("/", CheckLogin, async function (req, res) {
   try {
-    let { page = 1, limit = 10, status } = req.query;
+    let { status } = req.query;
+    let { page, limit, skip } = clampPagination(req.query, { maxLimit: 50 });
     let filter = { user: req.user._id };
     if (status) filter.status = status;
 
-    let orders = await orderModel
-      .find(filter)
-      .populate("items.product", "title images price slug")
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
-
-    let total = await orderModel.countDocuments(filter);
+    let [orders, total] = await Promise.all([
+      orderModel
+        .find(filter)
+        .populate("items.product", "title images price slug")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      orderModel.countDocuments(filter)
+    ]);
 
     res.send({
       orders,
       total,
-      page: parseInt(page),
+      page,
       totalPages: Math.ceil(total / limit),
     });
   } catch (err) {
@@ -356,24 +352,26 @@ router.get(
   CheckRole(["Admin"]),
   async function (req, res) {
     try {
-      let { page = 1, limit = 10, status } = req.query;
+      let { status } = req.query;
+      let { page, limit, skip } = clampPagination(req.query, { maxLimit: 100 });
       let filter = {};
       if (status) filter.status = status;
 
-      let orders = await orderModel
-        .find(filter)
-        .populate("user", "username email fullName")
-        .populate("items.product", "title images price slug")
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit));
-
-      let total = await orderModel.countDocuments(filter);
+      let [orders, total] = await Promise.all([
+        orderModel
+          .find(filter)
+          .populate("user", "username email fullName")
+          .populate("items.product", "title images price slug")
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit),
+        orderModel.countDocuments(filter)
+      ]);
 
       res.send({
         orders,
         total,
-        page: parseInt(page),
+        page,
         totalPages: Math.ceil(total / limit),
       });
     } catch (err) {
@@ -385,6 +383,9 @@ router.get(
 // GET /:id — Order detail
 router.get("/:id", CheckLogin, async function (req, res) {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).send({ message: "id khong hop le" });
+    }
     let order = await orderModel
       .findById(req.params.id)
       .populate("items.product", "title images price slug description")
@@ -417,6 +418,9 @@ router.put(
   CheckRole(["Admin"]),
   async function (req, res) {
     try {
+      if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(400).send({ message: "id khong hop le" });
+      }
       let { status } = req.body;
       let validStatuses = [
         "Pending",
@@ -600,6 +604,9 @@ router.put(
 );
 
 router.post('/:id/cancel', CheckLogin, async function (req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(400).send({ message: 'id khong hop le' });
+  }
   let session = await mongoose.startSession();
   session.startTransaction();
   try {

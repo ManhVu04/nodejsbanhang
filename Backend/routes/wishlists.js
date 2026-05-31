@@ -1,5 +1,6 @@
 let express = require('express');
 let router = express.Router();
+let mongoose = require('mongoose');
 let { CheckLogin } = require('../utils/authHandler');
 let userModel = require('../schemas/users');
 let productModel = require('../schemas/products');
@@ -25,6 +26,9 @@ router.get('/', CheckLogin, async function (req, res) {
 router.post('/:productId', CheckLogin, async function (req, res) {
     try {
         let productId = req.params.productId;
+        if (!mongoose.isValidObjectId(productId)) {
+            return res.status(400).send({ message: 'productId khong hop le' });
+        }
 
         let product = await productModel.findOne({ _id: productId, isDeleted: false });
         if (!product) {
@@ -58,12 +62,16 @@ router.post('/:productId', CheckLogin, async function (req, res) {
 
 router.delete('/:productId', CheckLogin, async function (req, res) {
     try {
+        let productId = req.params.productId;
+        if (!mongoose.isValidObjectId(productId)) {
+            return res.status(400).send({ message: 'productId khong hop le' });
+        }
+
         let user = await userModel.findById(req.user._id);
         if (!user) {
             return res.status(404).send({ message: 'User khong ton tai' });
         }
 
-        let productId = req.params.productId;
         user.wishlist = user.wishlist.filter((id) => id.toString() !== productId);
         await user.save();
 

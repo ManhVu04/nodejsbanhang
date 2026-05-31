@@ -76,16 +76,16 @@ const userSchema = new mongoose.Schema(
     timestamps: true
   }
 );
-userSchema.pre('save', function () {
+userSchema.pre('save', async function () {
   if (this.isModified('password')) {
-    let salt = bcrypt.genSaltSync(10);
-    this.password = bcrypt.hashSync(this.password, salt);
+    let salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
   }
 })
-userSchema.pre('findOneAndUpdate', function () {
+userSchema.pre('findOneAndUpdate', async function () {
   if (this._update && typeof this._update.password === 'string' && this._update.password.length > 0) {
-    let salt = bcrypt.genSaltSync(10);
-    this._update.password = bcrypt.hashSync(this._update.password, salt);
+    let salt = await bcrypt.genSalt(10);
+    this._update.password = await bcrypt.hash(this._update.password, salt);
   }
 })
 

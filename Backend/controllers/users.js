@@ -1,8 +1,13 @@
 let userModel = require("../schemas/users");
 let bcrypt = require('bcrypt');
+let crypto = require('crypto');
 
 const MAX_LOGIN_ATTEMPTS = 10;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
+
+function hashResetToken(token) {
+    return crypto.createHash('sha256').update(String(token || '')).digest('hex');
+}
 
 module.exports = {
     CreateAnUser: async function (username, password, email, role,session,
@@ -42,15 +47,17 @@ module.exports = {
         })
     },
     FindUserByToken: async function (token) {
-        let result =  await userModel.findOne({
+        if (!token) return false;
+        let result = await userModel.findOne({
             isDeleted: false,
-            forgotPasswordToken: token
+            forgotPasswordToken: hashResetToken(token)
         })
         if (result && result.forgotPasswordTokenExp && result.forgotPasswordTokenExp > Date.now()) {
             return result;
         }
         return false
     },
+    HashResetToken: hashResetToken,
     VerifyPassword: async function (user, password) {
         return bcrypt.compare(password, user.password);
     },

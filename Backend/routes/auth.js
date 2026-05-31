@@ -134,7 +134,7 @@ router.post('/login', async function (req, res, next) {
             return;
         }
         if (result.lockTime && result.lockTime > Date.now()) {
-            res.status(404).send({ message: "ban dang bi ban" });
+            res.status(423).send({ message: "ban dang bi ban" });
             return;
         }
         result = await userController.CompareLogin(result, password);
@@ -303,9 +303,12 @@ router.post('/forgotpassword', async function (req, res, next) {
 
         let user = await userController.FindUserByEmail(email);
         if (user) {
-            user.forgotPasswordToken = crypto.randomBytes(32).toString('hex');
+            // Send the raw token via email; store only its hash so a DB leak
+            // does not let an attacker reset every account's password.
+            let rawToken = crypto.randomBytes(32).toString('hex');
+            user.forgotPasswordToken = userController.HashResetToken(rawToken);
             user.forgotPasswordTokenExp = Date.now() + 10 * 60 * 1000;
-            let url = `${frontendUrl}/reset-password?token=${user.forgotPasswordToken}`;
+            let url = `${frontendUrl}/reset-password?token=${rawToken}`;
             await user.save();
             await sendMail(user.email, url)
         }

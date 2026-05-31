@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npm list:*)",
       "Bash(npm install:*)",
-      "WebFetch(domain:minishopecommerce.click)"
+      "WebFetch(domain:minishopecommerce.click)",
+      "Bash(grep -rn \"/products?\\\\|api.get\\(\\\\`/products\" \"/run/media/manhsd0/New Volume/NodejsCuoiKy/frontend/src\")"
     ]
   }
 }

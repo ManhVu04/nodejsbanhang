@@ -27,6 +27,11 @@ function getInactiveProductsFromServerCart(serverCart) {
     return Array.isArray(serverCart?.inactiveProducts) ? serverCart.inactiveProducts : [];
 }
 
+function getAllProductsFromServerCart(serverCart) {
+    return getActiveProductsFromServerCart(serverCart)
+        .concat(getInactiveProductsFromServerCart(serverCart));
+}
+
 function applyServerCartToState(state, serverCart) {
     state.serverCart = serverCart;
     state.items = getActiveProductsFromServerCart(serverCart);
@@ -48,10 +53,34 @@ export const syncGuestCart = createAsyncThunk('cart/syncGuest', async (_, { reje
     try {
         const guestCart = loadGuestCart();
         if (guestCart.length > 0) {
+            // Read the existing server cart so guest quantities are merged
+            // (added on top) instead of overwriting what's already there.
+            let serverQuantities = new Map();
+            try {
+                const existing = await api.get('/carts');
+                serverQuantities = new Map(
+                    getAllProductsFromServerCart(existing.data)
+                        .map((serverItem) => [
+                            String(serverItem?.productId || serverItem?.product?._id || ''),
+                            Number(serverItem?.quantity || 0)
+                        ])
+                        .filter(([id]) => id)
+                );
+            } catch { /* no server cart yet, treat as empty */ }
+
+            // Sequentially: /carts/modify reads-mutates-saves the same cart doc,
+            // so concurrent requests would overwrite each other (lost updates).
+            // Still 1 request/product instead of the old 1 request/unit.
             for (const item of guestCart) {
-                for (let i = 0; i < item.quantity; i++) {
-                    await api.post('/carts/add', { product: item.productId });
-                }
+                if (!item?.productId || Number(item?.quantity) <= 0) continue;
+                const id = String(item.productId);
+                const merged = (serverQuantities.get(id) || 0) + Number(item.quantity);
+                try {
+                    await api.post('/carts/modify', {
+                        product: item.productId,
+                        quantity: merged
+                    });
+                } catch { /* skip failed item, continue with others */ }
             }
             localStorage.removeItem(CART_STORAGE_KEY);
         }

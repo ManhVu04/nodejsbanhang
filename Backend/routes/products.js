@@ -8,6 +8,8 @@ let productMediaSchema = require('../schemas/productMedia')
 let mongoose = require('mongoose')
 let { CheckLogin, CheckRole } = require('../utils/authHandler')
 let { logAuditAction, getChangesDiff, getClientIpAddress } = require('../utils/auditHandler')
+let { getAvailableStock } = require('../utils/inventoryHelper')
+let { clampPagination } = require('../utils/pagination')
 
 const adminGuard = [CheckLogin, CheckRole(['Admin'])];
 
@@ -198,20 +200,48 @@ router.get('/search', async (req, res) => {
 });
 
 router.get('/', async (req, res) => {
-    let queries = req.query;
-    let minQ = queries.min ? queries.min : 0;
-    let result = await productSchema.find({
-        isDeleted: false,
-        price: {
-            $gte: minQ
+    try {
+        let queries = req.query;
+        let minPrice = Number(queries.min);
+        if (!Number.isFinite(minPrice) || minPrice < 0) {
+            minPrice = 0;
         }
-    }).populate({
-        path: 'category',
-        select: 'name',
-        match: { isDeleted: false }
-    })
-    let productsWithMedia = await mapProductsWithPrimaryImages(result)
-    res.send(productsWithMedia)
+        let hasPagination = queries.page !== undefined || queries.limit !== undefined;
+        let { page, limit, skip } = clampPagination(queries, { defaultLimit: 100, maxLimit: 100 });
+
+        let filter = { isDeleted: false, price: { $gte: minPrice } };
+
+        let query = productSchema.find(filter)
+            .populate({
+                path: 'category',
+                select: 'name',
+                match: { isDeleted: false }
+            })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        if (hasPagination) {
+            let [result, total] = await Promise.all([
+                query,
+                productSchema.countDocuments(filter)
+            ]);
+            let productsWithMedia = await mapProductsWithPrimaryImages(result);
+            return res.send({
+                products: productsWithMedia,
+                total,
+                page,
+                totalPages: Math.ceil(total / limit),
+                limit
+            });
+        }
+
+        let result = await query;
+        let productsWithMedia = await mapProductsWithPrimaryImages(result);
+        res.send(productsWithMedia);
+    } catch (error) {
+        res.status(400).send({ message: error.message });
+    }
 })
 router.get('/:id/related', async (req, res) => {
     try {
@@ -279,11 +309,7 @@ router.get('/:id', async (req, res) => {//req.params
         if (result) {
             let inventory = await inventorySchema.findOne({ product: result._id })
             let payload = (await mapProductsWithPrimaryImages([result]))[0] || result.toObject()
-            let availableStock = Math.max(
-                0,
-                Number(inventory?.stock || 0) - Number(inventory?.reserved || 0)
-            )
-            payload.availableStock = availableStock
+            payload.availableStock = getAvailableStock(inventory)
             payload.stock = Number(inventory?.stock || 0)
             res.send(payload)
         } else {

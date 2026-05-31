@@ -1,6 +1,7 @@
 var express = require("express");
 var router = express.Router();
 let { CheckLogin } = require('../utils/authHandler');
+let { getClientIpAddress } = require('../utils/auditHandler');
 let orderModel = require('../schemas/orders');
 let paymentModel = require('../schemas/payments');
 let crypto = require('crypto');
@@ -57,11 +58,11 @@ router.post('/create-payment-url', CheckLogin, async function (req, res) {
 
         let date = new Date();
         let createDate = date.toISOString().replace(/[-T:.Z]/g, '').slice(0, 14);
-        let orderId_vnp = date.getTime().toString();
+        // Combine timestamp with random suffix to avoid collisions when two
+        // payments are created in the same millisecond.
+        let orderId_vnp = `${date.getTime()}${crypto.randomBytes(3).toString('hex')}`;
 
-        let ipAddr = req.headers['x-forwarded-for'] ||
-            req.connection.remoteAddress ||
-            req.socket.remoteAddress || '127.0.0.1';
+        let ipAddr = getClientIpAddress(req) || '127.0.0.1';
 
         let vnpParams = {
             'vnp_Version': '2.1.0',

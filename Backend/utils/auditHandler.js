@@ -59,7 +59,6 @@ async function logAuditAction(params) {
     });
 
     await auditLog.save();
-    console.log(`[AuditLog] Logged: ${action} for ${resourceType}:${resourceId}`);
     return auditLog;
   } catch (error) {
     console.error('[AuditLog] Error logging audit action:', error.message);

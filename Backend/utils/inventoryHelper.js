@@ -1,5 +1,12 @@
 let inventoryModel = require('../schemas/inventories');
 
+function getAvailableStock(inventoryItem) {
+    return Math.max(
+        0,
+        Number(inventoryItem?.stock || 0) - Number(inventoryItem?.reserved || 0)
+    );
+}
+
 async function deductAvailableStock(productId, quantity, session) {
     let inventoryUpdate = await inventoryModel.findOneAndUpdate(
         {
@@ -46,4 +53,4 @@ async function releaseReservedStock(items, session) {
     }
 }
 
-module.exports = { deductAvailableStock, releaseReservedStock };
+module.exports = { getAvailableStock, deductAvailableStock, releaseReservedStock };

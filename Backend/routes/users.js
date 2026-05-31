@@ -6,6 +6,7 @@ let userController = require('../controllers/users')
 let { CheckLogin, CheckRole } = require('../utils/authHandler')
 let mongoose = require('mongoose')
 let { logAuditAction, getClientIpAddress } = require('../utils/auditHandler')
+let { escapeRegex } = require('../utils/regexHelper')
 
 const adminGuard = [CheckLogin, CheckRole(['Admin'])];
 const adminOrModeratorGuard = [CheckLogin, CheckRole(['Admin', 'Moderator'])];
@@ -26,10 +27,6 @@ function sanitizeUserAuditData(userDoc) {
     delete rawData.password;
   }
   return rawData;
-}
-
-function escapeRegex(value) {
-  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function pickAdminUserUpdate(body) {
@@ -139,6 +136,9 @@ router.get("/", adminOrModeratorGuard, async function (req, res, next) {
 
 router.get("/:id", adminGuard, async function (req, res, next) {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).send({ message: "id not found" });
+    }
     let result = await userModel
       .find({ _id: req.params.id, isDeleted: false })
     if (result.length > 0) {
@@ -196,6 +196,9 @@ router.post("/", adminGuard, CreateUserValidator, validationResult, async functi
 router.put("/:id", adminGuard, async function (req, res, next) {
   try {
     let id = req.params.id;
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).send({ message: "id not found" });
+    }
     let beforeUser = await userModel.findById(id);
 
     if (!beforeUser) return res.status(404).send({ message: "id not found" });
@@ -247,6 +250,9 @@ router.put("/:id", adminGuard, async function (req, res, next) {
 router.patch("/:id/active", adminGuard, async function (req, res, next) {
   try {
     let id = req.params.id;
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).send({ message: "id not found" });
+    }
     let beforeUser = await userModel.findById(id);
     if (!beforeUser) return res.status(404).send({ message: "id not found" });
 
@@ -277,6 +283,9 @@ router.patch("/:id/active", adminGuard, async function (req, res, next) {
 router.delete("/:id", adminGuard, async function (req, res, next) {
   try {
     let id = req.params.id;
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).send({ message: "id not found" });
+    }
     let beforeUser = await userModel.findById(id);
 
     let updatedItem = await userModel.findByIdAndUpdate(

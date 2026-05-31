@@ -5,6 +5,7 @@ let reviewModel = require('../schemas/reviews');
 let productModel = require('../schemas/products');
 let orderModel = require('../schemas/orders');
 let { CheckLogin } = require('../utils/authHandler');
+let { clampPagination } = require('../utils/pagination');
 
 async function getReviewStats(productId) {
     let objectId = new mongoose.Types.ObjectId(productId);
@@ -62,8 +63,13 @@ async function syncProductRating(productId) {
 
 router.get('/product/:productId', async function (req, res) {
     try {
-        let { page = 1, limit = 10, rating } = req.query;
+        let { rating } = req.query;
         let productId = req.params.productId;
+        if (!mongoose.isValidObjectId(productId)) {
+            return res.status(400).send({ message: 'productId khong hop le' });
+        }
+
+        let { page, limit, skip } = clampPagination(req.query, { maxLimit: 50 });
 
         let product = await productModel.findOne({ _id: productId, isDeleted: false });
         if (!product) {
@@ -79,20 +85,21 @@ router.get('/product/:productId', async function (req, res) {
             filter.rating = normalizedRating;
         }
 
-        let reviews = await reviewModel.find(filter)
-            .populate('user', 'username fullName avatarUrl')
-            .sort({ updatedAt: -1 })
-            .skip((Number(page) - 1) * Number(limit))
-            .limit(Number(limit));
-
-        let total = await reviewModel.countDocuments(filter);
-        let stats = await getReviewStats(productId);
+        let [reviews, total, stats] = await Promise.all([
+            reviewModel.find(filter)
+                .populate('user', 'username fullName avatarUrl')
+                .sort({ updatedAt: -1 })
+                .skip(skip)
+                .limit(limit),
+            reviewModel.countDocuments(filter),
+            getReviewStats(productId)
+        ]);
 
         return res.send({
             reviews,
             total,
-            page: Number(page),
-            totalPages: Math.ceil(total / Number(limit)),
+            page,
+            totalPages: Math.ceil(total / limit),
             stats
         });
     } catch (error) {
@@ -103,6 +110,9 @@ router.get('/product/:productId', async function (req, res) {
 router.get('/product/:productId/me', CheckLogin, async function (req, res) {
     try {
         let productId = req.params.productId;
+        if (!mongoose.isValidObjectId(productId)) {
+            return res.status(400).send({ message: 'productId khong hop le' });
+        }
         let product = await productModel.findOne({ _id: productId, isDeleted: false });
         if (!product) {
             return res.status(404).send({ message: 'San pham khong ton tai' });
@@ -123,6 +133,9 @@ router.get('/product/:productId/me', CheckLogin, async function (req, res) {
 router.post('/product/:productId', CheckLogin, async function (req, res) {
     try {
         let productId = req.params.productId;
+        if (!mongoose.isValidObjectId(productId)) {
+            return res.status(400).send({ message: 'productId khong hop le' });
+        }
         let rating = Number(req.body.rating);
         let comment = String(req.body.comment || '').trim();
 

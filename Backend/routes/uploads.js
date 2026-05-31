@@ -109,6 +109,14 @@ function getCellStringValue(cell) {
     return value.toString().trim();
 }
 
+function formatExcelResult(rows) {
+    return rows.map((entry, index) => ({
+        [index + 1]: entry.success
+            ? entry.data
+            : (Array.isArray(entry.data) ? entry.data.join(',') : entry.data)
+    }));
+}
+
 router.post('/an_image', adminGuard
     , function (req, res, next) {
         uploadSingleImage(req, res, function (error) {
@@ -144,8 +152,20 @@ router.post('/avatar', CheckLogin
     })
 
 router.get('/:filename', function (req, res, next) {
-    let filePath = path.join(__dirname, '../uploads', path.basename(req.params.filename))
-    res.sendFile(filePath)
+    let safeName = path.basename(String(req.params.filename || ''));
+    if (!safeName || safeName === '.' || safeName === '..') {
+        return res.status(400).send({ message: 'ten file khong hop le' });
+    }
+    let filePath = path.join(__dirname, '../uploads', safeName);
+    let resolved = path.resolve(filePath);
+    let uploadsDir = path.resolve(path.join(__dirname, '../uploads'));
+    if (!resolved.startsWith(uploadsDir + path.sep) && resolved !== uploadsDir) {
+        return res.status(400).send({ message: 'ten file khong hop le' });
+    }
+    if (!fs.existsSync(resolved)) {
+        return res.status(404).send({ message: 'file khong ton tai' });
+    }
+    res.sendFile(resolved);
 })
 
 router.post('/multiple_images', adminGuard
@@ -186,13 +206,9 @@ router.post('/excel', adminGuard, uploadExcel.single('file')
                 categoryMap.set(category.name, category._id)
             }
 
-            let products = await productModel.find({})
-            let getTitle = products.map(
-                p => p.title
-            )
-            let getSku = products.map(
-                p => p.sku
-            )
+            let products = await productModel.find({}).select('title sku')
+            let existingTitles = new Set(products.map(p => p.title))
+            let existingSkus = new Set(products.map(p => p.sku))
 
             for (let index = 2; index <= worksheet.rowCount; index++) {
                 let errorsRow = [];
@@ -212,10 +228,10 @@ router.post('/excel', adminGuard, uploadExcel.single('file')
                 if (!categoryMap.has(category)) {
                     errorsRow.push("category khong hop le")
                 }
-                if (getSku.includes(sku)) {
+                if (existingSkus.has(sku)) {
                     errorsRow.push("sku da ton tai")
                 }
-                if (getTitle.includes(title)) {
+                if (existingTitles.has(title)) {
                     errorsRow.push("title da ton tai")
                 }
 
@@ -250,8 +266,8 @@ router.post('/excel', adminGuard, uploadExcel.single('file')
                     await newInventory.populate('product')
                     await session.commitTransaction();
                     await session.endSession()
-                    getTitle.push(title);
-                    getSku.push(sku)
+                    existingTitles.add(title);
+                    existingSkus.add(sku);
                     result.push({
                         success: true,
                         data: newInventory
@@ -265,19 +281,8 @@ router.post('/excel', adminGuard, uploadExcel.single('file')
                     })
                 }
             }
-            fs.unlinkSync(filePath)
-            result = result.map((r, index) => {
-                if (r.success) {
-                    return {
-                        [index + 1]: r.data
-                    }
-                } else {
-                    return {
-                        [index + 1]: r.data.join(',')
-                    }
-                }
-            })
-            res.send(result)
+            try { fs.unlinkSync(filePath) } catch { /* ignore */ }
+            res.send(formatExcelResult(result))
         }
 
     })
@@ -373,18 +378,7 @@ router.post('/excel/users', adminGuard, uploadExcel.single('file')
                 }
             }
 
-            result = result.map((r, index) => {
-                if (r.success) {
-                    return {
-                        [index + 1]: r.data
-                    }
-                }
-                return {
-                    [index + 1]: Array.isArray(r.data) ? r.data.join(',') : r.data
-                }
-            })
-
-            return res.send(result)
+            return res.send(formatExcelResult(result))
         } catch (error) {
             return res.status(400).send({ message: error.message })
         } finally {

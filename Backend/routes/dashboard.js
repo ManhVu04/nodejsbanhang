@@ -110,14 +110,18 @@ router.get('/low-stock', CheckLogin, CheckRole(['Admin']), async function (req, 
 // GET /top-products — Top selling products
 router.get('/top-products', CheckLogin, CheckRole(['Admin']), async function (req, res) {
     try {
-        let { limit = 10 } = req.query;
+        let limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
 
+        // Pull a wider window then filter out deleted/missing products to ensure
+        // we still return up to `limit` after the post-filter.
         let topProducts = await inventoryModel.find()
-            .populate('product', 'title price images sku')
+            .populate('product', 'title price images sku isDeleted')
             .sort({ soldCount: -1 })
-            .limit(parseInt(limit));
+            .limit(limit * 3);
 
-        topProducts = topProducts.filter(inv => inv.product && !inv.product.isDeleted);
+        topProducts = topProducts
+            .filter(inv => inv.product && !inv.product.isDeleted)
+            .slice(0, limit);
 
         res.send(topProducts);
     } catch (err) {

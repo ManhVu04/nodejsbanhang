@@ -5,6 +5,7 @@ let categorySchema = require('../schemas/categories');
 let productSchema = require('../schemas/products');
 let { CheckLogin, CheckRole } = require('../utils/authHandler')
 let { logAuditAction, getClientIpAddress } = require('../utils/auditHandler')
+let { escapeRegex } = require('../utils/regexHelper')
 
 const adminGuard = [CheckLogin, CheckRole(['Admin'])];
 
@@ -29,13 +30,18 @@ router.get('/:id', async (req, res) => {//req.params
     }
 })
 router.get('/', async (req, res) => {
-    let queries = req.query;
-    let nameQ = queries.name?queries.name:'';
-    let dataCategories = await categorySchema.find({
-        isDeleted: false,
-        name:new RegExp(nameQ,'i')
-    }).populate('products')
-    res.send(dataCategories)
+    try {
+        let queries = req.query;
+        let nameQ = String(queries.name || '').trim();
+        let filter = { isDeleted: false };
+        if (nameQ) {
+            filter.name = new RegExp(escapeRegex(nameQ), 'i');
+        }
+        let dataCategories = await categorySchema.find(filter).sort({ createdAt: -1 });
+        res.send(dataCategories);
+    } catch (error) {
+        res.status(400).send({ message: error.message });
+    }
 })
 router.get('/:id/products', async (req, res) => {//req.params
     let id = req.params.id;
@@ -44,7 +50,11 @@ router.get('/:id/products', async (req, res) => {//req.params
             _id: id,
             isDeleted: false
         }
-    ).populate('products')
+    ).populate({
+        path: 'products',
+        match: { isDeleted: false },
+        select: 'title slug price images averageRating reviewCount'
+    })
     if (!filterData) {
         res.status(404).send({ message: "id khong hop le" })
     } else {

@@ -36,7 +36,7 @@ let productMediaLimits = {
 
 const allowedVideoFormats = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
 const allowedVideoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.m4v'];
-const allowedImageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.svg', '.jfif', '.tif', '.tiff'];
+const allowedImageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.jfif', '.tif', '.tiff'];
 
 function getFileExtension(file) {
     return path.extname(String(file?.originalname || '')).toLowerCase();
@@ -65,14 +65,27 @@ let storage = multer.diskStorage({
         cb(null, fileName)
     }
 })
+function isSvgFile(file) {
+    let mimeType = String(file?.mimetype || '').toLowerCase();
+    let extension = getFileExtension(file);
+    return mimeType === 'image/svg+xml' || extension === '.svg';
+}
+
 let filterImage = function (req, file, cb) {
-    if (file.mimetype.startsWith('image')) {
-        cb(null, true)
-    } else if (isOctetStream(file) && isImageExtension(getFileExtension(file))) {
-        cb(null, true)
-    } else {
-        cb(new Error("dinh dang file khong dung "))
+    // SVG can carry inline scripts (XSS) so it is rejected explicitly.
+    if (isSvgFile(file)) {
+        return cb(new Error('khong ho tro file SVG'));
     }
+
+    let mimeType = String(file?.mimetype || '').toLowerCase();
+    let extension = getFileExtension(file);
+    if (mimeType.startsWith('image/')) {
+        return cb(null, true);
+    }
+    if (isOctetStream(file) && isImageExtension(extension)) {
+        return cb(null, true);
+    }
+    return cb(new Error('dinh dang file khong dung'));
 }
 let filterExcel = function (req, file, cb) {
     if (file.mimetype.includes('spreadsheetml')) {
@@ -92,6 +105,10 @@ let filterVideo = function (req, file, cb) {
 }
 
 let filterProductMedia = function (req, file, cb) {
+    if (isSvgFile(file)) {
+        return cb(new Error('khong ho tro file SVG'));
+    }
+
     let extension = getFileExtension(file);
     let mimeType = String(file?.mimetype || '').toLowerCase();
     let isImageMime = mimeType.startsWith('image');
