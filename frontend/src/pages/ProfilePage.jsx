@@ -107,7 +107,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user?._id) {
-      setAddresses([]);
+      queueMicrotask(() => setAddresses([]));
       return;
     }
 
@@ -136,7 +136,7 @@ export default function ProfilePage() {
       }
     }
 
-    runLoadAddresses();
+    queueMicrotask(runLoadAddresses);
 
     return () => {
       shouldIgnore = true;

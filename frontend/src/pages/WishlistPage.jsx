@@ -25,7 +25,7 @@ export default function WishlistPage() {
     };
 
     useEffect(() => {
-        fetchWishlist();
+        queueMicrotask(fetchWishlist);
     }, []);
 
     const handleRemove = async (productId) => {

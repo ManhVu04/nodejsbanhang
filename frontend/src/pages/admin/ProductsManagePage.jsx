@@ -28,7 +28,7 @@ export default function ProductsManagePage() {
     }, []);
 
     useEffect(() => {
-        fetchAll();
+        queueMicrotask(fetchAll);
     }, [fetchAll]);
 
     const fetchProductMedia = useCallback(async (productId) => {

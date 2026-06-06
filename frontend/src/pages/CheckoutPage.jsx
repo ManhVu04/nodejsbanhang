@@ -133,13 +133,15 @@ export default function CheckoutPage() {
     : String(shippingPhoneNumber || "").trim();
 
   useEffect(() => {
-    setVoucherInfo((currentVoucherInfo) => {
-      if (!currentVoucherInfo) {
-        return currentVoucherInfo;
-      }
-      setVoucherCode("");
-      message.info("Đã đặt lại mã giảm giá vì giỏ hàng thay đổi");
-      return null;
+    queueMicrotask(() => {
+      setVoucherInfo((currentVoucherInfo) => {
+        if (!currentVoucherInfo) {
+          return currentVoucherInfo;
+        }
+        setVoucherCode("");
+        message.info("Đã đặt lại mã giảm giá vì giỏ hàng thay đổi");
+        return null;
+      });
     });
   }, [items.length, total]);
 

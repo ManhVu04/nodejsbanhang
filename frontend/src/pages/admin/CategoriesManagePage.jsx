@@ -20,7 +20,7 @@ export default function CategoriesManagePage() {
     }, []);
 
     useEffect(() => {
-        fetchCategories();
+        queueMicrotask(fetchCategories);
     }, [fetchCategories]);
 
     const openCreate = () => { setEditItem(null); form.resetFields(); setModalOpen(true); };

@@ -30,7 +30,7 @@ export default function VouchersManagePage() {
     }, []);
 
     useEffect(() => {
-        fetchVouchers();
+        queueMicrotask(fetchVouchers);
     }, [fetchVouchers]);
 
     const openCreate = () => {

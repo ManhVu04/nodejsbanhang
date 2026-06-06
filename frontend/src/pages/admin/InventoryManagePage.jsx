@@ -56,8 +56,10 @@ export default function InventoryManagePage() {
     }, []);
 
     useEffect(() => {
-        fetchInventories(1, inventoryPageSize);
-        fetchLogs();
+        queueMicrotask(() => {
+            fetchInventories(1, inventoryPageSize);
+            fetchLogs();
+        });
     }, [fetchInventories, fetchLogs, inventoryPageSize]);
 
     const openAddStock = (product) => {

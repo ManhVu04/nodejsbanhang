@@ -30,7 +30,7 @@ export default function ReturnsManagePage() {
     }, [statusFilter]);
 
     useEffect(() => {
-        fetchRequests();
+        queueMicrotask(fetchRequests);
     }, [fetchRequests]);
 
     const openReviewModal = (request) => {

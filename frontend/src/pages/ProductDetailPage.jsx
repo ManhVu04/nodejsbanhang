@@ -136,8 +136,10 @@ export default function ProductDetailPage() {
     }, [id, navigate]);
 
     useEffect(() => {
-        setProductMediaItems([]);
-        setActiveMediaIndex(0);
+        queueMicrotask(() => {
+            setProductMediaItems([]);
+            setActiveMediaIndex(0);
+        });
     }, [id]);
 
     useEffect(() => {
@@ -242,11 +244,11 @@ export default function ProductDetailPage() {
     }, [id, reviewForm, user?._id]);
 
     useEffect(() => {
-        loadReviews(1, reviewFilter);
+        queueMicrotask(() => loadReviews(1, reviewFilter));
     }, [loadReviews, reviewFilter]);
 
     useEffect(() => {
-        loadMyReview();
+        queueMicrotask(loadMyReview);
     }, [loadMyReview]);
 
     const normalizeQuantity = (value) => {
@@ -258,12 +260,14 @@ export default function ProductDetailPage() {
     };
 
     useEffect(() => {
-        if (availableStock > 0) {
-            setQuantity((currentQuantity) => Math.min(currentQuantity, availableStock));
-        } else {
-            setQuantity(1);
-        }
-        setShowStockLimitWarning(false);
+        queueMicrotask(() => {
+            if (availableStock > 0) {
+                setQuantity((currentQuantity) => Math.min(currentQuantity, availableStock));
+            } else {
+                setQuantity(1);
+            }
+            setShowStockLimitWarning(false);
+        });
     }, [availableStock]);
 
     const addSelectedQuantityToCart = async () => {

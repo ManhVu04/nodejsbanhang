@@ -38,13 +38,13 @@ export default function OrderDetailPage() {
     }, [id, navigate]);
 
     useEffect(() => {
-        fetchOrderDetail();
+        queueMicrotask(fetchOrderDetail);
     }, [fetchOrderDetail]);
 
     const handlePayAgain = async () => {
         try {
             const response = await api.post('/vnpay/create-payment-url', { orderId: order._id });
-            window.location.href = response.data.paymentUrl;
+            window.location.assign(response.data.paymentUrl);
         } catch (error) {
             message.error(error.response?.data?.message || 'Không thể tạo lại thanh toán');
         }
